@@ -1,0 +1,7 @@
+ 
+2025-05-04 15:16
+
+- Introduced Changelog
+- Maximum number of fights in Simulation is now 1'000'000. Any number bigger than that will result in 1'000'000 fights being executed anyway
+- Added experience per hour and per day in Simulation and Optimization results
+- If the second field of weapon or shield modification is left blank, it is assumed that both slots have been used for the same modification 

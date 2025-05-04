@@ -1,0 +1,841 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stellar Odyssey Player Setup</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 2em; background: #181c24; color: #e6eaf3; }
+        .form-section { max-width: 1100px; margin-left: 0; margin-right: auto; display: flex; flex-direction: row; gap: 2em; }
+        .form-section > div:first-child { flex: none; width: 420px; min-width: 420px; }
+        .form-row { display: flex; gap: 1em; margin-bottom: 1em; }
+        .form-group { flex: 1; display: flex; flex-direction: column; min-width: 180px; color: #e6eaf3; font-size: 1.08em; }
+        .input-group { display: flex; align-items: center; }
+        .input-group button {
+            width: 2.2em;
+            height: 1.6em;
+            font-size: 1.1em;
+            margin: 0 0.2em;
+            border-radius: 4px;
+            border: 1px solid #2c3242;
+            background: #36405a;
+            color: #e6eaf3;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+            transition: background 0.2s;
+            box-sizing: border-box;
+        }
+        .input-group button:active {
+            background: #2a3142;
+        }
+        .input-group input[type=number] {
+            width: 3.84em;
+            height: 1.32em;
+            font-size: 1.14em;
+            text-align: center;
+            border-radius: 4px;
+            border: 1px solid #2c3242;
+            background: #36405a;
+            color: #e6eaf3;
+            box-sizing: border-box;
+        }
+        .clone-modifiers-section {
+            flex: none;
+            display: grid;
+            grid-template-rows: repeat(5, 110px); /* 5 rows for up to 10 clones */
+            grid-template-columns: repeat(2, 230px);
+            grid-auto-flow: row;
+            gap: 0.5em;
+            margin-left: 40px;
+        }
+        .clone-modifiers-block {
+            background: #23283a;
+            border-radius: 6px;
+            border: 1px solid #2c3242;
+            padding: 0.25em 0.5em 0.15em 0.5em;
+            display: flex;
+            flex-direction: column;
+            align-items: stretch;
+            width: 260px;
+            min-width: 260px;
+            max-width: 260px;
+            height: 110px;
+            min-height: 110px;
+            max-height: 110px;
+            box-sizing: border-box;
+            font-size: 0.98em;
+            color: #e6eaf3;
+        }
+        .clone-modifiers-block:nth-child(2n) {
+            margin-left: 2em;
+        }
+        .clone-label {
+            font-weight: 600;
+            margin-bottom: 0.25em;
+            text-align: center;
+            font-size: 1.04em;
+            color: #e6eaf3;
+        }
+        .clone-field-group {
+            display: flex;
+            align-items: center;
+            gap: 0.15em;
+            margin-bottom: 0.15em;
+            color: #e6eaf3;
+        }
+        .clone-field-group label {
+            margin-bottom: 0;
+            font-size: 0.97em;
+            min-width: 90px;
+            white-space: nowrap;
+            color: #e6eaf3;
+        }
+        .clone-field-group input[type=number] {
+            width: 3.2em;
+            height: 1.1em;
+            font-size: 0.98em;
+            background: #36405a;
+            color: #e6eaf3;
+            border: 1px solid #2c3242;
+            padding-left: 5px;
+        }
+        .clone-field-group .minus-btn,
+        .clone-field-group .plus-btn {
+            width: 1.44em;
+            height: 1.08em;
+            font-size: 0.92em;
+            margin: 0 0.08em;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            vertical-align: middle;
+            padding: 0;
+            line-height: 1;
+            background: #36405a;
+            color: #e6eaf3;
+            border: 1px solid #2c3242;
+        }
+        label { margin-bottom: 0.2em; }
+        button[type=button], button[type=submit] {
+            margin-top: 1em; padding: 0.5em 1em;
+            background: #36405a;
+            color: #f3f6fa;
+            border: 1px solid #4a5a7c;
+            font-weight: 600;
+            letter-spacing: 0.01em;
+            transition: background 0.2s, color 0.2s;
+        }
+        button[type=button]:hover, button[type=submit]:hover {
+            background: #4a5a7c;
+            color: #fff;
+        }
+        .block-label { font-size: 1.22em; font-weight: 700; margin-bottom: 0.5em; color: #f3f6fa; letter-spacing: 0.01em; }
+        #playerResult { margin-top: 1.5em; font-size: 1.1em; color: #f3f6fa; }
+        @media (max-width: 900px) {
+            .form-section { max-width: 100%; }
+            .form-row { flex-direction: column; }
+            .clone-modifiers-section { margin-left: 0; }
+        }
+        .input-group .minus-btn,
+        .input-group .plus-btn {
+            width: 1.73em;
+            height: 1.30em;
+            font-size: 1.02em;
+            margin: 0 0.08em;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            vertical-align: middle;
+            padding: 0;
+            line-height: 1;
+            background: #36405a;
+            color: #e6eaf3;
+            border: 1px solid #2c3242;
+        }
+        #weapon_dmg,
+        #shield_def {
+            width: 5.0em;
+            background: #36405a;
+            color: #e6eaf3;
+            border: 1px solid #2c3242;
+        }
+        .player-block {
+            background: #23283a;
+            border-radius: 6px;
+            border: 1px solid #2c3242;
+            padding: 0.7em 1.2em 0.5em 1.2em;
+            box-sizing: border-box;
+            width: 420px;
+            min-width: 420px;
+            max-width: 420px;
+            margin-bottom: 1em;
+        }
+        .mob-block {
+            background: #23283a;
+            border-radius: 6px;
+            border: 1px solid #2c3242;
+            padding: 0.7em 1.2em 0.5em 1.2em;
+            box-sizing: border-box;
+            width: 420px;
+            min-width: 420px;
+            max-width: 420px;
+            margin-bottom: 1em;
+            margin-left: 0em;
+            align-self: flex-start;
+        }
+        #mob_name {
+            font-size: 1.0em;
+            background: #36405a;
+            color: #e6eaf3;
+            border: 1px solid #2c3242;
+        }
+        #weapon_ele1,
+        #weapon_ele2 {
+            font-size: 1.0em;
+            background: #36405a;
+            color: #e6eaf3;
+            border: 1px solid #2c3242;
+        }
+        #shield_ele1,
+        #shield_ele2 {
+            font-size: 1.0em;
+            background: #36405a;
+            color: #e6eaf3;
+            border: 1px solid #2c3242;
+        }
+        .battle-block {
+            background: #23283a;
+            border-radius: 6px;
+            border: 1px solid #2c3242;
+            padding: 0.7em 1.2em 0.5em 1.2em;
+            box-sizing: border-box;
+            width: 370px;
+            min-width: 370px;
+            max-width: 370px;
+            margin-bottom: -0.5em;
+            margin-top: 5.0em;
+            min-height: 230px;
+            color: #e6eaf3;
+        }
+        .optimizer-block {
+            background: #23283a !important;
+            border-radius: 6px;
+            border: 1px solid #2c3242 !important;
+            padding: 0.7em 1.2em 0.5em 1.2em;
+            box-sizing: border-box;
+            width: 370px;
+            min-width: 370px;
+            max-width: 370px;
+            min-height: 230px;
+            color: #e6eaf3;
+        }
+        footer { color: #b0b6c6; font-size: 0.98em; }
+        #n_fights {
+            background: #36405a;
+            color: #e6eaf3;
+            border: 1px solid #2c3242;
+        }
+    </style>
+    <script type="module">
+        import { Player } from './player.js';
+        import { Mob } from './mob.js';
+        import { Battle } from './battle.js';
+        import { CloneModifiers, MobName } from './dataclasses.js';
+        import { millify } from './utils.js';
+        import { Optimizer } from './optimizer.js';
+
+        // Predefined test values for easy testing
+        const DEFAULTS = {
+            power: 0,
+            precision: 0,
+            evasion: 0,
+            hull: 0,
+            weapon_dmg: 0,
+            shield_def: 0,
+            n_clones: 1,
+            weapon_ele1: "None",
+            weapon_ele2: "None",
+            shield_ele1: "None",
+            shield_ele2: "None",
+            vip_status: false,
+            mob_name: "Brutes",
+            mob_level: 1,
+            n_fights: 1000,
+            clone_modifiers: [
+                { crit: 0, critdmg: 0, dual: 0 }
+            ]
+        };
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const form = document.getElementById('playerForm');
+            const resultDiv = document.getElementById('playerResult');
+            const submitBtn = document.getElementById('submitBtn');
+            const cloneModifiersSection = document.getElementById('cloneModifiersSection');
+            let cloneModifiers = [];
+
+            // Apply DEFAULTS to form fields
+            Object.entries(DEFAULTS).forEach(([key, value]) => {
+                const el = document.getElementById(key);
+                if (!el) return;
+                if (el.type === "checkbox") {
+                    el.checked = !!value;
+                } else {
+                    el.value = value;
+                }
+            });
+            // For selects and n_clones, trigger input event to update UI
+            const nClonesInput = document.getElementById('n_clones');
+            nClonesInput.addEventListener('input', () => {
+                let n = Math.min(Math.max(parseInt(nClonesInput.value) || 1, 1), 10);
+                nClonesInput.value = n;
+                // Only resize the array here
+                if (cloneModifiers.length > n) {
+                    cloneModifiers = cloneModifiers.slice(0, n);
+                } else if (cloneModifiers.length < n) {
+                    while (cloneModifiers.length < n) {
+                        cloneModifiers.push({ crit: 0.0, critdmg: 0.0, dual: 0.0 });
+                    }
+                }
+                renderCloneModifiers(cloneModifiers.length);
+            });
+            // Set mob_name select
+            if (DEFAULTS.mob_name) {
+                const mobNameSelect = document.getElementById('mob_name');
+                if (mobNameSelect) mobNameSelect.value = DEFAULTS.mob_name;
+            }
+            // Set clone modifiers if present
+            if (DEFAULTS.clone_modifiers) {
+                cloneModifiers = DEFAULTS.clone_modifiers.map(mod => ({...mod}));
+                // Render with correct number of clones
+                renderCloneModifiers(DEFAULTS.n_clones);
+            }
+
+            function renderCloneModifiers(n) {
+                // Always use cloneModifiers.length as the source of truth
+                cloneModifiersSection.innerHTML = '';
+                for (let i = 0; i < cloneModifiers.length; i++) {
+                    const block = document.createElement('div');
+                    block.className = 'clone-modifiers-block';
+                    block.innerHTML = `
+                        <div class="clone-label">Clone ${i+1}</div>
+                        <div class="clone-field-group">
+                            <label>Crit. Chance</label>
+                            <button type="button" class="minus-btn" data-clone="${i}" data-field="crit">-</button>
+                            <input type="number" step="0.1" min="0" max="100" value="${cloneModifiers[i].crit}" class="clone-input" data-clone="${i}" data-field="crit">%
+                            <button type="button" class="plus-btn" data-clone="${i}" data-field="crit">+</button>
+                        </div>
+                        <div class="clone-field-group">
+                            <label>Crit. Damage</label>
+                            <button type="button" class="minus-btn" data-clone="${i}" data-field="critdmg">-</button>
+                            <input type="number" step="0.1" min="0" max="100" value="${cloneModifiers[i].critdmg}" class="clone-input" data-clone="${i}" data-field="critdmg">%
+                            <button type="button" class="plus-btn" data-clone="${i}" data-field="critdmg">+</button>
+                        </div>
+                        <div class="clone-field-group">
+                            <label>Dual Shot</label>
+                            <button type="button" class="minus-btn" data-clone="${i}" data-field="dual">-</button>
+                            <input type="number" step="0.1" min="0" max="100" value="${cloneModifiers[i].dual}" class="clone-input" data-clone="${i}" data-field="dual">%
+                            <button type="button" class="plus-btn" data-clone="${i}" data-field="dual">+</button>
+                        </div>
+                    `;
+                    cloneModifiersSection.appendChild(block);
+                }
+                // Attach event listeners for new buttons and inputs
+                const modifyAll = document.getElementById('modifyAllClones')?.checked;
+                cloneModifiersSection.querySelectorAll('.minus-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const idx = parseInt(btn.getAttribute('data-clone'));
+                        const field = btn.getAttribute('data-field');
+                        let newVal = Math.max(0, (parseFloat(cloneModifiers[idx][field]) || 0) - 1);
+                        if (document.getElementById('modifyAllClones')?.checked) {
+                            for (let j = 0; j < cloneModifiers.length; j++) cloneModifiers[j][field] = newVal;
+                        } else {
+                            cloneModifiers[idx][field] = newVal;
+                        }
+                        renderCloneModifiers(cloneModifiers.length);
+                    });
+                });
+                cloneModifiersSection.querySelectorAll('.plus-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const idx = parseInt(btn.getAttribute('data-clone'));
+                        const field = btn.getAttribute('data-field');
+                        let newVal = Math.min(100, (parseFloat(cloneModifiers[idx][field]) || 0) + 1);
+                        if (document.getElementById('modifyAllClones')?.checked) {
+                            for (let j = 0; j < cloneModifiers.length; j++) cloneModifiers[j][field] = newVal;
+                        } else {
+                            cloneModifiers[idx][field] = newVal;
+                        }
+                        renderCloneModifiers(cloneModifiers.length);
+                    });
+                });
+                cloneModifiersSection.querySelectorAll('.clone-input').forEach(input => {
+                    input.addEventListener('input', () => {
+                        const idx = parseInt(input.getAttribute('data-clone'));
+                        const field = input.getAttribute('data-field');
+                        let val = parseFloat(input.value) || 0;
+                        if (val < 0) val = 0;
+                        if (val > 100) val = 100;
+                        if (document.getElementById('modifyAllClones')?.checked) {
+                            for (let j = 0; j < cloneModifiers.length; j++) cloneModifiers[j][field] = val;
+                            renderCloneModifiers(cloneModifiers.length);
+                        } else {
+                            cloneModifiers[idx][field] = val;
+                        }
+                    });
+                });
+            }
+
+            // Handle plus/minus for player fields
+            document.querySelectorAll('.minus-btn:not([data-clone])').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const targetId = btn.getAttribute('data-target');
+                    const input = document.getElementById(targetId);
+                    const min = parseInt(input.getAttribute('min')) || 0;
+                    let val = parseInt(input.value) || 0;
+                    const step = (targetId === 'n_clones') ? 1 : ['precision', 'hull', 'power', 'evasion'].includes(targetId) ? 5 : 10;
+                    val = Math.max(min, val - step);
+                    input.value = val;
+                    input.dispatchEvent(new Event('input'));
+                });
+            });
+            document.querySelectorAll('.plus-btn:not([data-clone])').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const targetId = btn.getAttribute('data-target');
+                    const input = document.getElementById(targetId);
+                    let val = parseInt(input.value) || 0;
+                    const step = (targetId === 'n_clones') ? 1 : ['precision', 'hull', 'power', 'evasion'].includes(targetId) ? 5 : 10;
+                    val = val + step;
+                    input.value = val;
+                    input.dispatchEvent(new Event('input'));
+                });
+            });
+
+            // Simulate button logic
+            const simulateBtn = document.getElementById('simulateBtn');
+            const battleResultDiv = document.createElement('div');
+            battleResultDiv.id = 'battleResult';
+            simulateBtn.parentNode.parentNode.parentNode.appendChild(battleResultDiv);
+            simulateBtn.addEventListener('click', () => {
+                // Gather player fields
+                const power = parseInt(form.power.value) || 0;
+                const precision = parseInt(form.precision.value) || 0;
+                const evasion = parseInt(form.evasion.value) || 0;
+                const hull = parseInt(form.hull.value) || 0;
+                const weapon_dmg = parseInt(form.weapon_dmg.value) || 0;
+                const shield_def = parseInt(form.shield_def.value) || 0;
+                const n_clones = parseInt(form.n_clones.value) || 1;
+                const weapon_ele1 = form.weapon_ele1.value || null;
+                const weapon_ele2 = form.weapon_ele2.value || null;
+                const shield_ele1 = form.shield_ele1.value || null;
+                const shield_ele2 = form.shield_ele2.value || null;
+                const vip_status = form.vip_status.checked;
+
+                // Gather clone modifiers
+                const list_modifiers = cloneModifiers.map(mod =>
+                    new CloneModifiers(
+                        (parseFloat(mod.crit) || 0) / 100,
+                        (parseFloat(mod.critdmg) || 0) / 100,
+                        (parseFloat(mod.dual) || 0) / 100
+                    )
+                );
+
+                // Gather mob fields
+                const mob_name = form.mob_name.value;
+                const mob_level = parseInt(form.mob_level.value) || 1;
+                // MobName enum is uppercase keys
+                let mob_enum_key = Object.keys(MobName).find(key => MobName[key] === mob_name);
+                const mob = new Mob(MobName[mob_enum_key], mob_level);
+
+                // Number of fights
+                let n_fights = parseInt(form.n_fights.value) || 1000;
+                if (n_fights < 1) n_fights = 1;
+                if (n_fights > 1000000) {
+                    n_fights = 1000000;
+                    form.n_fights.value = 1000000;
+                }
+
+                // Create player
+                const player = new Player({
+                    power, precision, evasion, hull, weapon_dmg, shield_def, n_clones, vip_status,
+                    weapon_ele1, weapon_ele2, shield_ele1, shield_ele2
+                });
+
+                // Create and run battle
+                const battle = new Battle({ player, mob, list_modifiers, verbose: false });
+                const win_chance = battle.repeat_fights(n_fights);
+
+                // Print result
+                const creditsPerHour = battle.get_revenue('hourly', win_chance);
+                const creditsPerDay = battle.get_revenue('daily', win_chance);
+                const expPerHour = battle.get_experience('hourly', win_chance);
+                const expPerDay = battle.get_experience('daily', win_chance);
+                battleResultDiv.innerHTML = `<b>Win chance:</b> ${(win_chance * 100).toFixed(2)}%<br>` +
+                    `<b>Credits per hour:</b> ${millify(creditsPerHour)}/h<br>` +
+                    `<b>Credits per day:</b> ${millify(creditsPerDay)}/day<br>` +
+                    `<b>Experience per hour:</b> ${millify(expPerHour)}/h<br>` +
+                    `<b>Experience per day:</b> ${millify(expPerDay)}/day`;
+            });
+
+            // Optimizer logic
+            const optimizerBtn = document.getElementById('optimizerBtn');
+            const optimizerResultDiv = document.getElementById('optimizerResult');
+            optimizerBtn.addEventListener('click', () => {
+                // Gather player fields
+                const power = parseInt(form.power.value) || 0;
+                const precision = parseInt(form.precision.value) || 0;
+                const evasion = parseInt(form.evasion.value) || 0;
+                const hull = parseInt(form.hull.value) || 0;
+                const weapon_dmg = parseInt(form.weapon_dmg.value) || 0;
+                const shield_def = parseInt(form.shield_def.value) || 0;
+                const n_clones = parseInt(form.n_clones.value) || 1;
+                const weapon_ele1 = form.weapon_ele1.value || null;
+                const weapon_ele2 = form.weapon_ele2.value || null;
+                const shield_ele1 = form.shield_ele1.value || null;
+                const shield_ele2 = form.shield_ele2.value || null;
+                const vip_status = form.vip_status.checked;
+
+                // Gather clone modifiers
+                const list_modifiers = cloneModifiers.map(mod =>
+                    new CloneModifiers(
+                        (parseFloat(mod.crit) || 0) / 100,
+                        (parseFloat(mod.critdmg) || 0) / 100,
+                        (parseFloat(mod.dual) || 0) / 100
+                    )
+                );
+
+                // Gather mob fields
+                const mob_name = form.mob_name.value;
+                const mob_level = parseInt(form.mob_level.value) || 1;
+                let mob_enum_key = Object.keys(MobName).find(key => MobName[key] === mob_name);
+                const mob = new Mob(MobName[mob_enum_key], mob_level);
+
+                // Create player
+                const player = new Player({
+                    power, precision, evasion, hull, weapon_dmg, shield_def, n_clones, vip_status,
+                    weapon_ele1, weapon_ele2, shield_ele1, shield_ele2
+                });
+
+                // Use Optimizer.optimize_kontors()
+                const optimizer = new Optimizer(player, mob, list_modifiers);
+                const result = optimizer.optimize_kontors();
+                if (result && result.bestStats && result.winChance !== undefined) {
+                    const [power, precision, evasion, hull] = result.bestStats;
+                    const tmp_player = new Player({
+                        power,
+                        precision,
+                        evasion,
+                        hull,
+                        weapon_dmg: player.weapon_dmg,
+                        shield_def: player.shield_def,
+                        n_clones: player.n_clones,
+                        vip_status: player.vip_status,
+                        weapon_ele1: player.weapon_ele1,
+                        weapon_ele2: player.weapon_ele2,
+                        shield_ele1: player.shield_ele1,
+                        shield_ele2: player.shield_ele2
+                    });
+                    const battle = new Battle({ player: tmp_player, mob: mob, list_modifiers: list_modifiers });
+                    const creditsPerHour = battle.get_revenue('hourly', result.winChance);
+                    const creditsPerDay = battle.get_revenue('daily', result.winChance);
+                    const expPerHour = battle.get_experience('hourly', result.winChance);
+                    const expPerDay = battle.get_experience('daily', result.winChance);
+                    optimizerResultDiv.innerHTML = `
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.2em 1.2em; width: 140px; margin-bottom: 1em; font-size: 1em; margin-left: 20px;">
+                            <div><b>Power</b><br>${power}</div>
+                            <div><b>Precision</b><br>${precision}</div>
+                            <div><b>Evasion</b><br>${evasion}</div>
+                            <div><b>Hull</b><br>${hull}</div>
+                        </div>
+                        <div style="font-size: 0.98em; margin-top: 0.2em;">
+                            <div><b>Win chance:</b> ${(result.winChance * 100).toFixed(2)}%</div>
+                            <div><b>Credits per hour:</b> ${millify(creditsPerHour)}/h</div>
+                            <div><b>Credits per day:</b> ${millify(creditsPerDay)}/day</div>
+                            <div><b>Experience per hour:</b> ${millify(expPerHour)}/h</div>
+                            <div><b>Experience per day:</b> ${millify(expPerDay)}/day</div>
+                        </div>
+                    `;
+                    // Add Import button below Optimize, centered
+                    let optimizerBlock = optimizerBtn.closest('.optimizer-block');
+                    let importBtn = document.getElementById('importOptimizedBtn');
+                    if (!importBtn) {
+                        importBtn = document.createElement('button');
+                        importBtn.id = 'importOptimizedBtn';
+                        importBtn.type = 'button';
+                        importBtn.textContent = 'Import';
+                        importBtn.style.margin = '18px 6px 0 0';
+                        importBtn.style.alignSelf = 'center';
+                        importBtn.style.fontSize = '0.9m';
+                        optimizerBtn.parentNode.insertBefore(importBtn, optimizerBtn.nextSibling);
+                    }
+                    importBtn.onclick = () => {
+                        form.power.value = power;
+                        form.precision.value = precision;
+                        form.evasion.value = evasion;
+                        form.hull.value = hull;
+                    };
+                } else {
+                    optimizerResultDiv.innerHTML = '<span style="color: #a00">No result</span>';
+                    let importBtn = document.getElementById('importOptimizedBtn');
+                    if (importBtn) importBtn.remove();
+                }
+            });
+        });
+    </script>
+</head>
+<body>
+    <div style="font-size: 1.7em; font-weight: 600; margin-bottom: 1.2em; letter-spacing: 0.01em;">Stellar Odyssey Simulator and Optimizer</div>
+    <form id="playerForm" class="form-section" autocomplete="off" style="display: flex; flex-direction: row; gap: 2em;">
+        <div style="flex: 3;">
+            <div class="player-block" style="width: 420px; min-width: 420px; max-width: 420px;">
+                <div class="block-label">Player</div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="power">Power:</label>
+                        <div class="input-group">
+                            <button type="button" class="minus-btn" data-target="power">-</button>
+                            <input type="number" id="power" name="power" value="0" min="0">
+                            <button type="button" class="plus-btn" data-target="power">+</button>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="precision">Precision:</label>
+                        <div class="input-group">
+                            <button type="button" class="minus-btn" data-target="precision">-</button>
+                            <input type="number" id="precision" name="precision" value="0" min="0">
+                            <button type="button" class="plus-btn" data-target="precision">+</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="evasion">Evasion:</label>
+                        <div class="input-group">
+                            <button type="button" class="minus-btn" data-target="evasion">-</button>
+                            <input type="number" id="evasion" name="evasion" value="0" min="0">
+                            <button type="button" class="plus-btn" data-target="evasion">+</button>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="hull">Hull:</label>
+                        <div class="input-group">
+                            <button type="button" class="minus-btn" data-target="hull">-</button>
+                            <input type="number" id="hull" name="hull" value="0" min="0">
+                            <button type="button" class="plus-btn" data-target="hull">+</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="weapon_dmg">Weapon Damage:</label>
+                        <div class="input-group">
+                            <button type="button" class="minus-btn" data-target="weapon_dmg">-</button>
+                            <input type="number" id="weapon_dmg" name="weapon_dmg" value="0" min="0">
+                            <button type="button" class="plus-btn" data-target="weapon_dmg">+</button>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="shield_def">Shield Defense:</label>
+                        <div class="input-group">
+                            <button type="button" class="minus-btn" data-target="shield_def">-</button>
+                            <input type="number" id="shield_def" name="shield_def" value="0" min="0">
+                            <button type="button" class="plus-btn" data-target="shield_def">+</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="weapon_ele1">Weapon Modification 1:</label>
+                        <select id="weapon_ele1" name="weapon_ele1">
+                            <option value="">None</option>
+                            <option value="Chemical">Chemical</option>
+                            <option value="Electromagnetic">Electromagnetic</option>
+                            <option value="Energy">Energy</option>
+                            <option value="Explosive">Explosive</option>
+                            <option value="Incendiary">Incendiary</option>
+                            <option value="Kinetic">Kinetic</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="weapon_ele2">Weapon Modification 2:</label>
+                        <select id="weapon_ele2" name="weapon_ele2">
+                            <option value="">None</option>
+                            <option value="Chemical">Chemical</option>
+                            <option value="Electromagnetic">Electromagnetic</option>
+                            <option value="Energy">Energy</option>
+                            <option value="Explosive">Explosive</option>
+                            <option value="Incendiary">Incendiary</option>
+                            <option value="Kinetic">Kinetic</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="shield_ele1">Shield Modification 1:</label>
+                        <select id="shield_ele1" name="shield_ele1">
+                            <option value="">None</option>
+                            <option value="Chemical">Chemical</option>
+                            <option value="Electromagnetic">Electromagnetic</option>
+                            <option value="Energy">Energy</option>
+                            <option value="Explosive">Explosive</option>
+                            <option value="Incendiary">Incendiary</option>
+                            <option value="Kinetic">Kinetic</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="shield_ele2">Shield Modification 2:</label>
+                        <select id="shield_ele2" name="shield_ele2">
+                            <option value="">None</option>
+                            <option value="Chemical">Chemical</option>
+                            <option value="Electromagnetic">Electromagnetic</option>
+                            <option value="Energy">Energy</option>
+                            <option value="Explosive">Explosive</option>
+                            <option value="Incendiary">Incendiary</option>
+                            <option value="Kinetic">Kinetic</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="n_clones">Number of Clones:</label>
+                        <div class="input-group">
+                            <button type="button" class="minus-btn" data-target="n_clones">-</button>
+                            <input type="number" id="n_clones" name="n_clones" value="1" min="1" max="10">
+                            <button type="button" class="plus-btn" data-target="n_clones">+</button>
+                        </div>
+                    </div>
+                    <div class="form-group" style="align-items: flex-start; justify-content: flex-end;">
+                        <label for="vip_status" style="margin-bottom: 0;">
+                            <input type="checkbox" id="vip_status" name="vip_status">
+                            VIP Status
+                        </label>
+                    </div>
+                </div>
+            </div>
+            <div class="mob-block" style="width: 420px; min-width: 420px; max-width: 420px;">
+                <div class="block-label">Mob</div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="mob_name">Mob Name:</label>
+                        <select id="mob_name" name="mob_name">
+                            <option value="Brutes">Brutes</option>
+                            <option value="Dusters">Dusters</option>
+                            <option value="Machiners">Machiners</option>
+                            <option value="Toxoids">Toxoids</option>
+                            <option value="Scorchers">Scorchers</option>
+                            <option value="Glacials">Glacials</option>
+                            <option value="Specters">Specters</option>
+                            <option value="Miners">Miners</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="mob_level">Level:</label>
+                        <div class="input-group">
+                            <button type="button" class="minus-btn" data-target="mob_level">-</button>
+                            <input type="number" id="mob_level" name="mob_level" value="1" min="1">
+                            <button type="button" class="plus-btn" data-target="mob_level">+</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div style="display: flex; flex-direction: row; align-items: flex-start;">
+            <div style="position: relative; width: fit-content;">
+                <div style="position: absolute; left: 180px; top: -2.1em; z-index: 2;">
+                    <label style="font-size: 1.08em; display: flex; align-items: center; color: #e6eaf3; background: #23283a; padding: 0.1em 0.7em 0.1em 0.5em; border-radius: 5px; box-shadow: 0 2px 8px 0 rgba(0,0,0,0.04);">
+                        <input type="checkbox" id="modifyAllClones" style="margin-right: 0.5em;"> Modify all clones together
+                    </label>
+                </div>
+                <div id="cloneModifiersSection" class="clone-modifiers-section"></div>
+            </div>
+            <div style="display: flex; flex-direction: column; align-items: flex-start; margin-left: 7.5em;">
+                <div class="battle-block" style="margin-top: 0; margin-left: 5px; min-height: 210px; max-height: 210px;">
+                    <div class="block-label">Battle Simulation</div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="n_fights">Number of fights:</label>
+                            <input type="number" id="n_fights" name="n_fights" value="1000" min="1" max="1000000">
+                        </div>
+                        <div class="form-group" style="align-items: flex-start; justify-content: flex-start;">
+                            <button id="simulateBtn" type="button">Simulate</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="optimizer-block" style="margin-top: 1.5em; background: #f8f8f8; margin-left: 5px; border-radius: 6px; border: 1px solid #e0e0e0; padding: 0.7em 1.2em 0.5em 1.2em; box-sizing: border-box; width: 370px; min-width: 370px; max-width: 370px; min-height: 210px;">
+                    <div style="display: flex; flex-direction: row; align-items: flex-start; gap: 1.1em;">
+                        <div style="display: flex; flex-direction: column; align-items: flex-start; gap: 0.3em; min-width: 90px;">
+                            <div class="block-label" style="margin-bottom: 0.2em;">Optimizer</div>
+                            <button id="optimizerBtn" type="button" style="margin-bottom: 0.1em;">Optimize</button>
+                        </div>
+                        <div id="optimizerResult"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+    <div id="playerResult"></div>
+    <footer style="margin-top: 12em; font-size: 1em; color: #928e8e; text-align: left;">
+        <span>Proudly made by anfneub</span>
+        <span style="margin-left: 2.5em;" id="lastUpdated"></span>
+        <span style="margin-left: 2.5em;">Space Odyssey Version: 1.0.4 2025-04-30</span>
+        <span style="margin-left: 2.5em; cursor: pointer; color: #4fa3ff; text-decoration: underline;" id="changelogLink">Changelog</span>
+    </footer>
+    <script>
+        // Set last updated date/time
+        const lastUpdated = document.getElementById('lastUpdated');
+        if (lastUpdated) {
+            const now = new Date();
+            const pad = n => n.toString().padStart(2, '0');
+            const dateStr = "2025-05-04";
+            const timeStr = "15:16";
+            lastUpdated.textContent = `Last updated: ${dateStr} ${timeStr}`;
+        }
+    </script>
+    <!-- Changelog Modal -->
+    <div id="changelogModal" style="display:none; position:fixed; z-index:1000; left:0; top:0; width:100vw; height:100vh; background:rgba(0,0,0,0.4); align-items:center; justify-content:center;">
+      <div style="background:#222; color:#fff; padding:1.5em; border-radius:10px; max-width:650px; width:117vw; max-width:65vw; max-height:70vh; overflow:auto; box-shadow:0 4px 32px #000; position:relative;">
+        <button id="closeChangelog" style="position:absolute; top:0.5em; right:0.5em; background:none; border:none; color:#fff; font-size:1.5em; cursor:pointer;">&times;</button>
+        <h2 style="margin-top:0;">Changelog</h2>
+        <div id="changelogContent" style="white-space:pre-wrap; background:#181818; padding:1em; border-radius:6px; max-height:50vh; overflow:auto; font-size:1em; font-family:inherit;">Loading...</div>
+      </div>
+    </div>
+    <script>
+    document.getElementById('changelogLink').addEventListener('click', function() {
+      const modal = document.getElementById('changelogModal');
+      modal.style.display = 'flex';
+      fetch('changelog.txt')
+        .then(r => r.text())
+        .then(txt => {
+          // Format lines starting with '-' as list items
+          const lines = txt.split('\n');
+          let html = '';
+          let inList = false;
+          for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+            if (/^\s*- /.test(line)) {
+              if (!inList) { html += '<ul style="margin:0 0 0 1.5em; padding-left:1.2em;">'; inList = true; }
+              html += '<li style="margin-bottom:0.2em;">' + line.replace(/^\s*- /, '') + '</li>';
+            } else {
+              if (inList) { html += '</ul>'; inList = false; }
+              // If the line is not empty, wrap in <div>, else add a blank line
+              html += line.trim() ? '<div>' + line + '</div>' : '<div style="height:0.7em;"></div>';
+            }
+          }
+          if (inList) html += '</ul>';
+          document.getElementById('changelogContent').innerHTML = html;
+        })
+        .catch(() => {
+          document.getElementById('changelogContent').textContent = 'Could not load changelog.';
+        });
+    });
+    document.getElementById('closeChangelog').addEventListener('click', function() {
+      document.getElementById('changelogModal').style.display = 'none';
+    });
+    // Optional: close modal on outside click
+    document.getElementById('changelogModal').addEventListener('click', function(e) {
+      if (e.target === this) this.style.display = 'none';
+    });
+    </script>
+</body>
+</html> 
