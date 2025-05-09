@@ -667,41 +667,33 @@
             async function fetchUserData(apiKey) {
                 try {
                     console.log('Attempting to fetch user data...');
-                    const response = await axios.get(`https://auth.stellarodyssey.app/api/public/user?apikey=${apiKey}`, {
+                    const response = await fetch(`https://auth.stellarodyssey.app/api/public/user?apikey=${apiKey}`, {
+                        method: 'GET',
                         headers: {
-                            'Accept': 'application/json',
-                            'Content-Type': 'application/json',
-                            'Access-Control-Allow-Origin': '*'
-                        },
-                        withCredentials: false
+                            'Accept': 'application/json'
+                        }
                     });
-                    console.log('Response received:', response);
-                    return response.data;
+                    
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    
+                    const data = await response.json();
+                    console.log('Response received:', data);
+                    return data;
                 } catch (error) {
                     console.error('Detailed error:', error);
                     let errorMessage = 'Failed to fetch user data. ';
                     
-                    if (error.response) {
-                        // The request was made and the server responded with a status code
-                        // that falls out of the range of 2xx
-                        console.error('Error response:', error.response);
-                        errorMessage += `Server responded with status ${error.response.status}. `;
-                        if (error.response.status === 401) {
+                    if (error.message.includes('HTTP error')) {
+                        const status = error.message.split('status: ')[1];
+                        errorMessage += `Server responded with status ${status}. `;
+                        if (status === '401') {
                             errorMessage += 'Invalid API key.';
-                        } else if (error.response.status === 404) {
+                        } else if (status === '404') {
                             errorMessage += 'User not found.';
                         }
-                    } else if (error.request) {
-                        // The request was made but no response was received
-                        console.error('No response received:', error.request);
-                        if (error.message === 'Network Error') {
-                            errorMessage = 'CORS Error: The server is not allowing requests from this domain. Please contact the server administrator to allow requests from your domain.';
-                        } else {
-                            errorMessage += 'No response from server. Please check your internet connection and verify the API endpoint is correct.';
-                        }
                     } else {
-                        // Something happened in setting up the request that triggered an Error
-                        console.error('Error setting up request:', error.message);
                         errorMessage += error.message;
                     }
                     throw new Error(errorMessage);
