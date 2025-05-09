@@ -664,14 +664,24 @@
             
             async function fetchUserData(apiKey) {
                 try {
+                    console.log('Attempting to fetch user data...');
                     const response = await axios.get('https://auth.stellarodyssey.app/api/public/user', {
                         params: { apikey: apiKey },
+                        headers: {
+                            'Accept': 'application/json',
+                            'Content-Type': 'application/json'
+                        }
                     });
+                    console.log('Response received:', response);
                     return response.data;
                 } catch (error) {
-                    console.error('Error fetching data:', error);
+                    console.error('Detailed error:', error);
                     let errorMessage = 'Failed to fetch user data. ';
+                    
                     if (error.response) {
+                        // The request was made and the server responded with a status code
+                        // that falls out of the range of 2xx
+                        console.error('Error response:', error.response);
                         errorMessage += `Server responded with status ${error.response.status}. `;
                         if (error.response.status === 401) {
                             errorMessage += 'Invalid API key.';
@@ -679,8 +689,12 @@
                             errorMessage += 'User not found.';
                         }
                     } else if (error.request) {
-                        errorMessage += 'No response from server. Please check your internet connection.';
+                        // The request was made but no response was received
+                        console.error('No response received:', error.request);
+                        errorMessage += 'No response from server. Please check your internet connection and verify the API endpoint is correct.';
                     } else {
+                        // Something happened in setting up the request that triggered an Error
+                        console.error('Error setting up request:', error.message);
                         errorMessage += error.message;
                     }
                     throw new Error(errorMessage);
