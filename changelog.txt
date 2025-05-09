@@ -1,5 +1,18 @@
+
+2025-05-09 16:32
+- It is now possible to select the number of fights for each stat combination being tested in the optimization 
+
+2025-05-08 19:32
+- Added local memory for last settings used. Settings should be kept in memory after refreshing
+
+2025-05-05 15:45
+- Fixed a bug with experience for higher levels
+- Improved the optimizer in the case where number of drones is smaller than 5 
+
+2025-05-04 20:34
+- Improved the optimization logic, should now produce much better results than before (but are they optimal? who knows!). Thanks to kontors and Maliciousism for their suggestions
  
-2025-05-04 15:16
+2025-05-04 13:16
 
 - Introduced Changelog
 - Maximum number of fights in Simulation is now 1'000'000. Any number bigger than that will result in 1'000'000 fights being executed anyway

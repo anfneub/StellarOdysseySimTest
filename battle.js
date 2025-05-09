@@ -190,7 +190,7 @@ class Battle {
     get_experience(exp_type, win_chance = 1.0) {
         let exp_base = 20.0 + Math.floor(0.1 * this.mob.lvl);
         if (this.player.vip_status) {
-            exp_base = 22.0 + Math.floor(0.1 * this.mob.lvl);
+            exp_base = Math.floor(exp_base * 1.1);
         }
         if (exp_type === 'hourly') {
             return exp_base * 10 * 60 * win_chance;

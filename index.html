@@ -239,6 +239,7 @@
             border: 1px solid #2c3242;
         }
     </style>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
     <script type="module">
         import { Player } from './player.js';
         import { Mob } from './mob.js';
@@ -276,22 +277,68 @@
             const cloneModifiersSection = document.getElementById('cloneModifiersSection');
             let cloneModifiers = [];
 
-            // Apply DEFAULTS to form fields
-            Object.entries(DEFAULTS).forEach(([key, value]) => {
-                const el = document.getElementById(key);
-                if (!el) return;
-                if (el.type === "checkbox") {
-                    el.checked = !!value;
-                } else {
-                    el.value = value;
-                }
-            });
+            // Function to save all settings to localStorage
+            function saveSettings() {
+                const settings = {
+                    // Player stats
+                    power: form.power.value,
+                    precision: form.precision.value,
+                    evasion: form.evasion.value,
+                    hull: form.hull.value,
+                    weapon_dmg: form.weapon_dmg.value,
+                    shield_def: form.shield_def.value,
+                    n_clones: form.n_clones.value,
+                    weapon_ele1: form.weapon_ele1.value,
+                    weapon_ele2: form.weapon_ele2.value,
+                    shield_ele1: form.shield_ele1.value,
+                    shield_ele2: form.shield_ele2.value,
+                    vip_status: form.vip_status.checked,
+                    // Mob settings
+                    mob_name: form.mob_name.value,
+                    mob_level: form.mob_level.value,
+                    // Clone modifiers
+                    clone_modifiers: cloneModifiers
+                };
+                localStorage.setItem('stellarOdysseySettings', JSON.stringify(settings));
+            }
+
+            // Load saved settings or use defaults
+            const savedSettings = localStorage.getItem('stellarOdysseySettings');
+            if (savedSettings) {
+                const settings = JSON.parse(savedSettings);
+                Object.entries(settings).forEach(([key, value]) => {
+                    if (key === 'clone_modifiers') {
+                        cloneModifiers = value;
+                    } else {
+                        const el = document.getElementById(key);
+                        if (!el) return;
+                        if (el.type === "checkbox") {
+                            el.checked = !!value;
+                        } else {
+                            el.value = value;
+                        }
+                    }
+                });
+                // Render clone modifiers with saved values
+                renderCloneModifiers(parseInt(settings.n_clones) || 1);
+            } else {
+                // Apply DEFAULTS to form fields
+                Object.entries(DEFAULTS).forEach(([key, value]) => {
+                    const el = document.getElementById(key);
+                    if (!el) return;
+                    if (el.type === "checkbox") {
+                        el.checked = !!value;
+                    } else {
+                        el.value = value;
+                    }
+                });
+                cloneModifiers = DEFAULTS.clone_modifiers.map(mod => ({...mod}));
+            }
             // For selects and n_clones, trigger input event to update UI
             const nClonesInput = document.getElementById('n_clones');
             nClonesInput.addEventListener('input', () => {
                 let n = Math.min(Math.max(parseInt(nClonesInput.value) || 1, 1), 10);
                 nClonesInput.value = n;
-                // Only resize the array here
                 if (cloneModifiers.length > n) {
                     cloneModifiers = cloneModifiers.slice(0, n);
                 } else if (cloneModifiers.length < n) {
@@ -299,19 +346,9 @@
                         cloneModifiers.push({ crit: 0.0, critdmg: 0.0, dual: 0.0 });
                     }
                 }
-                renderCloneModifiers(cloneModifiers.length);
+                renderCloneModifiers(n);
+                saveSettings();
             });
-            // Set mob_name select
-            if (DEFAULTS.mob_name) {
-                const mobNameSelect = document.getElementById('mob_name');
-                if (mobNameSelect) mobNameSelect.value = DEFAULTS.mob_name;
-            }
-            // Set clone modifiers if present
-            if (DEFAULTS.clone_modifiers) {
-                cloneModifiers = DEFAULTS.clone_modifiers.map(mod => ({...mod}));
-                // Render with correct number of clones
-                renderCloneModifiers(DEFAULTS.n_clones);
-            }
 
             function renderCloneModifiers(n) {
                 // Always use cloneModifiers.length as the source of truth
@@ -355,6 +392,7 @@
                             cloneModifiers[idx][field] = newVal;
                         }
                         renderCloneModifiers(cloneModifiers.length);
+                        saveSettings();
                     });
                 });
                 cloneModifiersSection.querySelectorAll('.plus-btn').forEach(btn => {
@@ -368,6 +406,7 @@
                             cloneModifiers[idx][field] = newVal;
                         }
                         renderCloneModifiers(cloneModifiers.length);
+                        saveSettings();
                     });
                 });
                 cloneModifiersSection.querySelectorAll('.clone-input').forEach(input => {
@@ -383,6 +422,7 @@
                         } else {
                             cloneModifiers[idx][field] = val;
                         }
+                        saveSettings();
                     });
                 });
             }
@@ -517,9 +557,12 @@
                     weapon_ele1, weapon_ele2, shield_ele1, shield_ele2
                 });
 
-                // Use Optimizer.optimize_kontors()
-                const optimizer = new Optimizer(player, mob, list_modifiers);
-                const result = optimizer.optimize_kontors();
+                const optimizerFightsInput = document.getElementById('optimizer_n_fights');
+                const n_fights = parseInt(optimizerFightsInput.value);
+                const optimizer = new Optimizer(player, mob, list_modifiers, n_fights);
+                let result;
+                result = optimizer.optimize();
+                
                 if (result && result.bestStats && result.winChance !== undefined) {
                     const [power, precision, evasion, hull] = result.bestStats;
                     const tmp_player = new Player({
@@ -541,34 +584,30 @@
                     const creditsPerDay = battle.get_revenue('daily', result.winChance);
                     const expPerHour = battle.get_experience('hourly', result.winChance);
                     const expPerDay = battle.get_experience('daily', result.winChance);
-                    optimizerResultDiv.innerHTML = `
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.2em 1.2em; width: 140px; margin-bottom: 1em; font-size: 1em; margin-left: 20px;">
-                            <div><b>Power</b><br>${power}</div>
-                            <div><b>Precision</b><br>${precision}</div>
-                            <div><b>Evasion</b><br>${evasion}</div>
-                            <div><b>Hull</b><br>${hull}</div>
-                        </div>
-                        <div style="font-size: 0.98em; margin-top: 0.2em;">
-                            <div><b>Win chance:</b> ${(result.winChance * 100).toFixed(2)}%</div>
-                            <div><b>Credits per hour:</b> ${millify(creditsPerHour)}/h</div>
-                            <div><b>Credits per day:</b> ${millify(creditsPerDay)}/day</div>
-                            <div><b>Experience per hour:</b> ${millify(expPerHour)}/h</div>
-                            <div><b>Experience per day:</b> ${millify(expPerDay)}/day</div>
-                        </div>
-                    `;
-                    // Add Import button below Optimize, centered
-                    let optimizerBlock = optimizerBtn.closest('.optimizer-block');
+                    
+                    // Update the stats
+                    document.getElementById('opt_power').textContent = power;
+                    document.getElementById('opt_precision').textContent = precision;
+                    document.getElementById('opt_evasion').textContent = evasion;
+                    document.getElementById('opt_hull').textContent = hull;
+                    
+                    // Update the results
+                    document.getElementById('opt_win_chance').textContent = `${(result.winChance * 100).toFixed(2)}%`;
+                    document.getElementById('opt_credits_hour').textContent = `${millify(creditsPerHour)}/h`;
+                    document.getElementById('opt_credits_day').textContent = `${millify(creditsPerDay)}/day`;
+                    document.getElementById('opt_exp_hour').textContent = `${millify(expPerHour)}/h`;
+                    document.getElementById('opt_exp_day').textContent = `${millify(expPerDay)}/day`;
+
+                    // Add Import button next to Optimize
                     let importBtn = document.getElementById('importOptimizedBtn');
                     if (!importBtn) {
                         importBtn = document.createElement('button');
                         importBtn.id = 'importOptimizedBtn';
                         importBtn.type = 'button';
                         importBtn.textContent = 'Import';
-                        importBtn.style.margin = '18px 6px 0 0';
-                        importBtn.style.alignSelf = 'center';
-                        importBtn.style.fontSize = '0.9m';
                         optimizerBtn.parentNode.insertBefore(importBtn, optimizerBtn.nextSibling);
                     }
+                    importBtn.style.display = 'inline-block';
                     importBtn.onclick = () => {
                         form.power.value = power;
                         form.precision.value = precision;
@@ -576,9 +615,157 @@
                         form.hull.value = hull;
                     };
                 } else {
-                    optimizerResultDiv.innerHTML = '<span style="color: #a00">No result</span>';
+                    // Reset all values to "-"
+                    document.getElementById('opt_power').textContent = '-';
+                    document.getElementById('opt_precision').textContent = '-';
+                    document.getElementById('opt_evasion').textContent = '-';
+                    document.getElementById('opt_hull').textContent = '-';
+                    document.getElementById('opt_win_chance').textContent = '-';
+                    document.getElementById('opt_credits_hour').textContent = '-';
+                    document.getElementById('opt_credits_day').textContent = '-';
+                    document.getElementById('opt_exp_hour').textContent = '-';
+                    document.getElementById('opt_exp_day').textContent = '-';
+                    
                     let importBtn = document.getElementById('importOptimizedBtn');
-                    if (importBtn) importBtn.remove();
+                    if (importBtn) importBtn.style.display = 'none';
+                }
+            });
+
+            // Add event listeners to save settings when values change
+            form.querySelectorAll('input, select').forEach(element => {
+                element.addEventListener('change', saveSettings);
+            });
+
+            // For number inputs, also save on input event for immediate feedback
+            form.querySelectorAll('input[type="number"]').forEach(element => {
+                element.addEventListener('input', saveSettings);
+            });
+
+            // Modify the clone modifiers event listeners to save settings
+            function addCloneModifierListeners() {
+                cloneModifiersSection.querySelectorAll('.minus-btn, .plus-btn, .clone-input').forEach(element => {
+                    element.addEventListener('change', saveSettings);
+                    if (element.classList.contains('clone-input')) {
+                        element.addEventListener('input', saveSettings);
+                    }
+                });
+            }
+
+            // Update the renderCloneModifiers function to add listeners
+            const originalRenderCloneModifiers = renderCloneModifiers;
+            renderCloneModifiers = function(n) {
+                originalRenderCloneModifiers(n);
+                addCloneModifierListeners();
+            };
+
+            // Add API import functionality
+            const importBtn = document.getElementById('importBtn');
+            const apiKeyInput = document.getElementById('api_key');
+            
+            async function fetchUserData(apiKey) {
+                try {
+                    const response = await axios.get('https://auth.stellarodyssey.app/api/public/user', {
+                        params: { apikey: apiKey },
+                    });
+                    return response.data;
+                } catch (error) {
+                    console.error('Error fetching data:', error);
+                    let errorMessage = 'Failed to fetch user data. ';
+                    if (error.response) {
+                        errorMessage += `Server responded with status ${error.response.status}. `;
+                        if (error.response.status === 401) {
+                            errorMessage += 'Invalid API key.';
+                        } else if (error.response.status === 404) {
+                            errorMessage += 'User not found.';
+                        }
+                    } else if (error.request) {
+                        errorMessage += 'No response from server. Please check your internet connection.';
+                    } else {
+                        errorMessage += error.message;
+                    }
+                    throw new Error(errorMessage);
+                }
+            }
+
+            function updateFormWithUserData(userData) {
+                const data = userData.data;
+                
+                // Update player stats
+                document.getElementById('power').value = data.stats.power;
+                document.getElementById('precision').value = data.stats.precision;
+                document.getElementById('evasion').value = data.stats.evasion;
+                document.getElementById('hull').value = data.stats.hull;
+                
+                // Update VIP status
+                document.getElementById('vip_status').checked = data.premium;
+                
+                // Update weapon and shield
+                const weapon = data.ship.weapon;
+                const shield = data.ship.shield;
+                
+                // Set weapon damage and shield defense based on level
+                document.getElementById('weapon_dmg').value = weapon.level;
+                document.getElementById('shield_def').value = shield.level;
+                
+                // Set weapon and shield elements
+                if (weapon.bonuses && weapon.bonuses.length > 0) {
+                    document.getElementById('weapon_ele1').value = weapon.bonuses[0];
+                    if (weapon.bonuses.length > 1) {
+                        document.getElementById('weapon_ele2').value = weapon.bonuses[1];
+                    }
+                }
+                
+                if (shield.bonuses && shield.bonuses.length > 0) {
+                    document.getElementById('shield_ele1').value = shield.bonuses[0];
+                    if (shield.bonuses.length > 1) {
+                        document.getElementById('shield_ele2').value = shield.bonuses[1];
+                    }
+                }
+                
+                // Update number of clones and their modifiers
+                const nClones = data.clones.length;
+                document.getElementById('n_clones').value = nClones;
+                
+                // Update clone modifiers
+                cloneModifiers = data.clones.map(clone => ({
+                    crit: clone.critical_chance,
+                    critdmg: clone.critical_damage,
+                    dual: clone.dual_shot
+                }));
+                
+                // Trigger the n_clones input event to update the UI
+                const nClonesInput = document.getElementById('n_clones');
+                nClonesInput.dispatchEvent(new Event('input'));
+                
+                // Save the updated settings
+                saveSettings();
+            }
+
+            importBtn.addEventListener('click', async () => {
+                const apiKey = apiKeyInput.value.trim();
+                if (!apiKey) {
+                    alert('Please enter your API key');
+                    return;
+                }
+
+                try {
+                    // Show loading state
+                    importBtn.disabled = true;
+                    importBtn.textContent = 'Importing...';
+
+                    const userData = await fetchUserData(apiKey);
+                    updateFormWithUserData(userData);
+                    
+                    // Reset button state
+                    importBtn.disabled = false;
+                    importBtn.textContent = 'Import';
+                } catch (error) {
+                    // Show error message
+                    alert(error.message);
+                    
+                    // Reset button state
+                    importBtn.disabled = false;
+                    importBtn.textContent = 'Import';
                 }
             });
         });
@@ -750,25 +937,62 @@
                 <div id="cloneModifiersSection" class="clone-modifiers-section"></div>
             </div>
             <div style="display: flex; flex-direction: column; align-items: flex-start; margin-left: 7.5em;">
-                <div class="battle-block" style="margin-top: 0; margin-left: 5px; min-height: 210px; max-height: 210px;">
-                    <div class="block-label">Battle Simulation</div>
+                <div class="api-block" style="margin-top: 0; margin-left: 5px; min-height: 110px; max-height: 110px; width: 450px; min-width: 450px; max-width: 450px; background: #23283a; border-radius: 6px; border: 1px solid #2c3242; padding: 0.7em 1.2em 0.5em 1.2em; box-sizing: border-box;">
+                    <div class="block-label">Import data
+                        <span style="color: #4fa3ff; margin-left: 5px; cursor: help;" title="Import your player, mob and clone stats using your API key. This will automatically fill in all your current stats. Your API key is located in Settings">ⓘ</span>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group" style="flex: 1;">
+                            <label for="api_key">API Key:</label>
+                            <input type="text" id="api_key" name="api_key" style="width: 150%; background: #36405a; color: #e6eaf3; border: 1px solid #2c3242; padding: 0.2em;">
+                        </div>
+                        <div class="form-group" style="align-items: flex-start; justify-content: flex-start; margin-left: 110px;">
+                            <button id="importBtn" type="button">Import</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="battle-block" style="margin-top: 1.0em; margin-left: 5px; min-height: 210px; max-height: 210px;width: 350px; min-width: 350px; max-width: 350px">
+                    <div class="block-label">Battle Simulation
+                        <span style="color: #4fa3ff; margin-left: 5px; cursor: help;" title="Run a battle simulation with the current configuration. The simulation will execute the specified number of battles (up to 1,000,000) to calculate win probability and resource gains.">ⓘ</span>
+                    </div>
                     <div class="form-row">
                         <div class="form-group">
                             <label for="n_fights">Number of fights:</label>
-                            <input type="number" id="n_fights" name="n_fights" value="1000" min="1" max="1000000">
+                            <input type="number" id="n_fights" name="n_fights" value="10000" min="1" max="1000000" style="width: 5.5em; background: #36405a; color: #e6eaf3; border: 1px solid #2c3242;">
                         </div>
-                        <div class="form-group" style="align-items: flex-start; justify-content: flex-start;">
+                        <div class="form-group" style="align-items: flex-start; justify-content: flex-start; margin-left: -30px;">
                             <button id="simulateBtn" type="button">Simulate</button>
                         </div>
                     </div>
                 </div>
-                <div class="optimizer-block" style="margin-top: 1.5em; background: #f8f8f8; margin-left: 5px; border-radius: 6px; border: 1px solid #e0e0e0; padding: 0.7em 1.2em 0.5em 1.2em; box-sizing: border-box; width: 370px; min-width: 370px; max-width: 370px; min-height: 210px;">
-                    <div style="display: flex; flex-direction: row; align-items: flex-start; gap: 1.1em;">
-                        <div style="display: flex; flex-direction: column; align-items: flex-start; gap: 0.3em; min-width: 90px;">
-                            <div class="block-label" style="margin-bottom: 0.2em;">Optimizer</div>
-                            <button id="optimizerBtn" type="button" style="margin-bottom: 0.1em;">Optimize</button>
+                <div class="optimizer-block" style="margin-top: 1.5em; margin-left: 5px; width: 500px; min-width: 500px; max-width: 500px; min-height: 210px;">
+                    <div class="block-label">Optimizer
+                        <span style="color: #4fa3ff; margin-left: 5px; cursor: help;" title="Find the optimal stat distribution for your current configuration. The optimizer will test various stat combinations using the specified number of simulations (up to 1,000,000). Higher values provide more accurate results but significantly increase computation time and may temporarily freeze the interface. Consider starting with a lower number and increasing it if needed.">ⓘ</span>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="optimizer_n_fights">Number of fights:</label>
+                            <input type="number" id="optimizer_n_fights" name="optimizer_n_fights" value="5000" min="1" max="1000000" style="width: 5.5em; background: #36405a; color: #e6eaf3; border: 1px solid #2c3242;">
                         </div>
-                        <div id="optimizerResult"></div>
+                        <div class="form-group" style="align-items: flex-start; justify-content: flex-start; margin-left: -130px; display: flex; flex-direction: row; align-items: center;">
+                            <button id="optimizerBtn" type="button">Optimize</button>
+                            <button id="importOptimizedBtn" type="button" style="display: none; margin-left: 20px;">Import</button>
+                        </div>
+                    </div>
+                    <div id="optimizerResult" style="display: flex; flex-direction: row; gap: 2em; margin-top: 1em;">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.2em 1.2em; width: 140px; font-size: 1em;">
+                            <div><b>Power</b><br><span id="opt_power">-</span></div>
+                            <div><b>Precision</b><br><span id="opt_precision">-</span></div>
+                            <div><b>Evasion</b><br><span id="opt_evasion">-</span></div>
+                            <div><b>Hull</b><br><span id="opt_hull">-</span></div>
+                        </div>
+                        <div style="font-size: 0.98em;">
+                            <div><b>Win chance:</b> <span id="opt_win_chance">-</span></div>
+                            <div><b>Credits per hour:</b> <span id="opt_credits_hour">-</span></div>
+                            <div><b>Credits per day:</b> <span id="opt_credits_day">-</span></div>
+                            <div><b>Experience per hour:</b> <span id="opt_exp_hour">-</span></div>
+                            <div><b>Experience per day:</b> <span id="opt_exp_day">-</span></div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -778,7 +1002,7 @@
     <footer style="margin-top: 12em; font-size: 1em; color: #928e8e; text-align: left;">
         <span>Proudly made by anfneub</span>
         <span style="margin-left: 2.5em;" id="lastUpdated"></span>
-        <span style="margin-left: 2.5em;">Space Odyssey Version: 1.0.4 2025-04-30</span>
+        <span style="margin-left: 2.5em;">Space Odyssey Version 1.0.9 2025-05-07</span>
         <span style="margin-left: 2.5em; cursor: pointer; color: #4fa3ff; text-decoration: underline;" id="changelogLink">Changelog</span>
     </footer>
     <script>
@@ -787,8 +1011,8 @@
         if (lastUpdated) {
             const now = new Date();
             const pad = n => n.toString().padStart(2, '0');
-            const dateStr = "2025-05-04";
-            const timeStr = "15:16";
+            const dateStr = "2025-05-09";
+            const timeStr = "16:32";
             lastUpdated.textContent = `Last updated: ${dateStr} ${timeStr}`;
         }
     </script>
