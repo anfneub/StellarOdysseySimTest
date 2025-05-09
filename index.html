@@ -297,7 +297,9 @@
                     mob_name: form.mob_name.value,
                     mob_level: form.mob_level.value,
                     // Clone modifiers
-                    clone_modifiers: cloneModifiers
+                    clone_modifiers: cloneModifiers,
+                    // API key
+                    api_key: document.getElementById('api_key').value
                 };
                 localStorage.setItem('stellarOdysseySettings', JSON.stringify(settings));
             }
@@ -668,8 +670,10 @@
                     const response = await axios.get(`https://auth.stellarodyssey.app/api/public/user?apikey=${apiKey}`, {
                         headers: {
                             'Accept': 'application/json',
-                            'Content-Type': 'application/json'
-                        }
+                            'Content-Type': 'application/json',
+                            'Access-Control-Allow-Origin': '*'
+                        },
+                        withCredentials: false
                     });
                     console.log('Response received:', response);
                     return response.data;
@@ -690,7 +694,11 @@
                     } else if (error.request) {
                         // The request was made but no response was received
                         console.error('No response received:', error.request);
-                        errorMessage += 'No response from server. Please check your internet connection and verify the API endpoint is correct.';
+                        if (error.message === 'Network Error') {
+                            errorMessage = 'CORS Error: The server is not allowing requests from this domain. Please contact the server administrator to allow requests from your domain.';
+                        } else {
+                            errorMessage += 'No response from server. Please check your internet connection and verify the API endpoint is correct.';
+                        }
                     } else {
                         // Something happened in setting up the request that triggered an Error
                         console.error('Error setting up request:', error.message);
