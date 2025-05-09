@@ -666,7 +666,6 @@
             
             async function fetchUserData(apiKey) {
                 try {
-                    console.log('Attempting to fetch user data...');
                     const response = await axios({
                         method: 'get',
                         url: `https://auth.stellarodyssey.app/api/public/user?apikey=${apiKey}`,
@@ -675,16 +674,11 @@
                         },
                         timeout: 5000
                     });
-                    console.log('Response received:', response);
                     return response.data;
                 } catch (error) {
-                    console.error('Detailed error:', error);
                     let errorMessage = 'Failed to fetch user data. ';
                     
                     if (error.response) {
-                        // The request was made and the server responded with a status code
-                        // that falls out of the range of 2xx
-                        console.error('Error response:', error.response);
                         errorMessage += `Server responded with status ${error.response.status}. `;
                         if (error.response.status === 401) {
                             errorMessage += 'Invalid API key.';
@@ -692,12 +686,8 @@
                             errorMessage += 'User not found.';
                         }
                     } else if (error.request) {
-                        // The request was made but no response was received
-                        console.error('No response received:', error.request);
                         errorMessage += 'No response from server. Please check your internet connection and verify the API endpoint is correct.';
                     } else {
-                        // Something happened in setting up the request that triggered an Error
-                        console.error('Error setting up request:', error.message);
                         errorMessage += error.message;
                     }
                     throw new Error(errorMessage);
@@ -707,54 +697,60 @@
             function updateFormWithUserData(userData) {
                 const data = userData.data;
                 
-                // Update player stats
                 document.getElementById('power').value = data.stats.power;
                 document.getElementById('precision').value = data.stats.precision;
                 document.getElementById('evasion').value = data.stats.evasion;
                 document.getElementById('hull').value = data.stats.hull;
-                
-                // Update VIP status
                 document.getElementById('vip_status').checked = data.premium;
                 
-                // Update weapon and shield
                 const weapon = data.ship.weapon;
                 const shield = data.ship.shield;
                 
-                // Set weapon damage and shield defense based on level
-                document.getElementById('weapon_dmg').value = weapon.level;
-                document.getElementById('shield_def').value = shield.level;
+                document.getElementById('weapon_dmg').value = weapon.value;
+                document.getElementById('shield_def').value = shield.value;
                 
-                // Set weapon and shield elements
                 if (weapon.bonuses && weapon.bonuses.length > 0) {
-                    document.getElementById('weapon_ele1').value = weapon.bonuses[0];
-                    if (weapon.bonuses.length > 1) {
-                        document.getElementById('weapon_ele2').value = weapon.bonuses[1];
+                    const firstBonus = weapon.bonuses[0].charAt(0).toUpperCase() + weapon.bonuses[0].slice(1);
+                    document.getElementById('weapon_ele1').value = firstBonus;
+                    
+                    if (weapon.bonuses.length > 1 && weapon.bonuses[1]) {
+                        const secondBonus = weapon.bonuses[1].charAt(0).toUpperCase() + weapon.bonuses[1].slice(1);
+                        document.getElementById('weapon_ele2').value = secondBonus;
+                    } else {
+                        document.getElementById('weapon_ele2').value = "";
                     }
                 }
                 
                 if (shield.bonuses && shield.bonuses.length > 0) {
-                    document.getElementById('shield_ele1').value = shield.bonuses[0];
-                    if (shield.bonuses.length > 1) {
-                        document.getElementById('shield_ele2').value = shield.bonuses[1];
+                    const firstBonus = shield.bonuses[0].charAt(0).toUpperCase() + shield.bonuses[0].slice(1);
+                    document.getElementById('shield_ele1').value = firstBonus;
+                    
+                    if (shield.bonuses.length > 1 && shield.bonuses[1]) {
+                        const secondBonus = shield.bonuses[1].charAt(0).toUpperCase() + shield.bonuses[1].slice(1);
+                        document.getElementById('shield_ele2').value = secondBonus;
+                    } else {
+                        document.getElementById('shield_ele2').value = "";
                     }
                 }
                 
-                // Update number of clones and their modifiers
                 const nClones = data.clones.length;
                 document.getElementById('n_clones').value = nClones;
                 
-                // Update clone modifiers
                 cloneModifiers = data.clones.map(clone => ({
                     crit: clone.critical_chance,
                     critdmg: clone.critical_damage,
                     dual: clone.dual_shot
                 }));
+
+                if (data.actions) {
+                    const mobName = data.actions.currentNpc.charAt(0).toUpperCase() + data.actions.currentNpc.slice(1);
+                    document.getElementById('mob_name').value = mobName;
+                    document.getElementById('mob_level').value = data.actions.currentNpcLevel;
+                }
                 
-                // Trigger the n_clones input event to update the UI
                 const nClonesInput = document.getElementById('n_clones');
                 nClonesInput.dispatchEvent(new Event('input'));
                 
-                // Save the updated settings
                 saveSettings();
             }
 
@@ -766,21 +762,17 @@
                 }
 
                 try {
-                    // Show loading state
                     importBtn.disabled = true;
                     importBtn.textContent = 'Importing...';
 
                     const userData = await fetchUserData(apiKey);
                     updateFormWithUserData(userData);
                     
-                    // Reset button state
                     importBtn.disabled = false;
                     importBtn.textContent = 'Import';
                 } catch (error) {
-                    // Show error message
                     alert(error.message);
                     
-                    // Reset button state
                     importBtn.disabled = false;
                     importBtn.textContent = 'Import';
                 }
