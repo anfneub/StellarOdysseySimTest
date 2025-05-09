@@ -665,8 +665,7 @@
             async function fetchUserData(apiKey) {
                 try {
                     console.log('Attempting to fetch user data...');
-                    const response = await axios.get('https://auth.stellarodyssey.app/api/public/user', {
-                        params: { apikey: apiKey },
+                    const response = await axios.get(`https://auth.stellarodyssey.app/api/public/user?apikey=${apiKey}`, {
                         headers: {
                             'Accept': 'application/json',
                             'Content-Type': 'application/json'
