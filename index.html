@@ -297,7 +297,9 @@
                     mob_name: form.mob_name.value,
                     mob_level: form.mob_level.value,
                     // Clone modifiers
-                    clone_modifiers: cloneModifiers
+                    clone_modifiers: cloneModifiers,
+                    // API key
+                    api_key: document.getElementById('api_key').value
                 };
                 localStorage.setItem('stellarOdysseySettings', JSON.stringify(settings));
             }
