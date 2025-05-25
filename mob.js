@@ -6,10 +6,21 @@ class Mob {
         this.lvl = lvl;
         this.weaknesses = mob_properties[this.name].weaknesses;
         this.output_class = mob_properties[this.name].mob_class;
-        this.hp = 800.0 * this.lvl;
-        this.dmg = 7.0 * this.lvl;
-        this.pre = 2.0 * this.lvl;
-        this.eva = 2.0 * this.lvl;
+        
+        if (this.lvl < 100) {
+            this.dmg = Math.floor(7.0 * this.lvl);
+            this.pre = Math.floor(1.0 * this.lvl);
+            this.eva = Math.floor(1.0 * this.lvl);
+        }
+        else {
+            this.dmg = Math.floor(7.0 * 1.1 * this.lvl);
+            this.pre = Math.floor(1.0 * 1.5 * this.lvl);
+            this.eva = Math.floor(1.0 * 1.5 * this.lvl);
+            console.log(`lvl >= 100`)
+        }
+        
+        if (this.lvl < 150) {this.hp = Math.floor(1300.0 * this.lvl);}
+        else {this.hp = Math.floor(1300.0 * 1.2 * this.lvl);}
 
         this.current_hp = this.hp;
         this.hit_counter = 0;

@@ -174,11 +174,12 @@ class Battle {
         return `Credits per hour: ${millify(revenue_per_hour)}/h\nCredits per day: ${millify(revenue_per_day)}/day`;
     }
 
-    get_revenue(revenue_type, win_chance = 1.0) {
-        let tot_credits = 30.0 * (10.0 + this.mob.lvl);
+    get_revenue(revenue_type, win_chance = 1.0, income_boost = 0.0, reputation = 0.0) {
+        let tot_credits = 300.0 * (1.0 + 0.1 * this.mob.lvl);
         if (this.player.vip_status) {
             tot_credits *= 1.1;
         }
+        tot_credits *= (1.0 + income_boost + reputation);
         if (revenue_type === 'hourly') {
             return tot_credits * 10 * 60 * win_chance;
         } else if (revenue_type === 'daily') {
@@ -187,11 +188,12 @@ class Battle {
         return 0.0;
     }
 
-    get_experience(exp_type, win_chance = 1.0) {
+    get_experience(exp_type, win_chance = 1.0, reputation = 0.0) {
         let exp_base = 20.0 + Math.floor(0.1 * this.mob.lvl);
         if (this.player.vip_status) {
             exp_base = Math.floor(exp_base * 1.1);
         }
+        exp_base = Math.floor(exp_base * (1 + reputation));
         if (exp_type === 'hourly') {
             return exp_base * 10 * 60 * win_chance;
         } else if (exp_type === 'daily') {

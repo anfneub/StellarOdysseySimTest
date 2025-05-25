@@ -1,3 +1,14 @@
+2025-05-25 11:50
+- Updates NPC values scaling as per new patch 
+
+2025-05-19 12:58
+- Added link to Kontors' resources calculator
+
+2025-05-16 08:14
+- Added Squadron boost to income and experience results. Slight differences between simulator and in game log are due to rounding errors
+
+2025-05-15 20:48
+- Added resources gathering calculator
 
 2025-05-09 16:32
 - It is now possible to select the number of fights for each stat combination being tested in the optimization 

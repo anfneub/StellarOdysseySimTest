@@ -277,6 +277,44 @@
             const cloneModifiersSection = document.getElementById('cloneModifiersSection');
             let cloneModifiers = [];
 
+            // Load saved settings or use defaults
+            const savedSettings = localStorage.getItem('stellarOdysseySettings');
+            if (savedSettings) {
+                const settings = JSON.parse(savedSettings);
+                Object.entries(settings).forEach(([key, value]) => {
+                    if (key === 'clone_modifiers') {
+                        cloneModifiers = value;
+                    } else {
+                        const el = document.getElementById(key);
+                        if (!el) return;
+                        if (el.type === "checkbox") {
+                            el.checked = !!value;
+                        } else if (el.type === "select-one") {
+                            el.value = value || "";
+                        } else {
+                            el.value = value;
+                        }
+                    }
+                });
+                // Render clone modifiers with saved values
+                renderCloneModifiers(parseInt(settings.n_clones) || 1);
+            } else {
+                // Apply DEFAULTS to form fields
+                Object.entries(DEFAULTS).forEach(([key, value]) => {
+                    const el = document.getElementById(key);
+                    if (!el) return;
+                    if (el.type === "checkbox") {
+                        el.checked = !!value;
+                    } else if (el.type === "select-one") {
+                        el.value = value || "";
+                    } else {
+                        el.value = value;
+                    }
+                });
+                cloneModifiers = DEFAULTS.clone_modifiers.map(mod => ({...mod}));
+                renderCloneModifiers(parseInt(DEFAULTS.n_clones) || 1);
+            }
+
             // Function to save all settings to localStorage
             function saveSettings() {
                 const settings = {
@@ -296,45 +334,20 @@
                     // Mob settings
                     mob_name: form.mob_name.value,
                     mob_level: form.mob_level.value,
+                    // Squadron buffs
+                    income_boost: form.income_boost?.value || 0,
+                    reputation: form.reputation?.value || 0,
                     // Clone modifiers
                     clone_modifiers: cloneModifiers,
-                    // API key
-                    api_key: document.getElementById('api_key').value
+                    // Resources calculator
+                    resources_per_action: form.resources_per_action?.value || 0,
+                    rare_resources_per_action: form.rare_resources_per_action?.value || 0,
+                    number_of_drones: form.number_of_drones?.value || 1,
+                    dodge_percentage: form.dodge_percentage?.value || 0,
+                    rare_drop_increase: form.rare_drop_increase?.value || 0,
+                    maneuverability: form.maneuverability?.value || 0
                 };
                 localStorage.setItem('stellarOdysseySettings', JSON.stringify(settings));
-            }
-
-            // Load saved settings or use defaults
-            const savedSettings = localStorage.getItem('stellarOdysseySettings');
-            if (savedSettings) {
-                const settings = JSON.parse(savedSettings);
-                Object.entries(settings).forEach(([key, value]) => {
-                    if (key === 'clone_modifiers') {
-                        cloneModifiers = value;
-                    } else {
-                        const el = document.getElementById(key);
-                        if (!el) return;
-                        if (el.type === "checkbox") {
-                            el.checked = !!value;
-                        } else {
-                            el.value = value;
-                        }
-                    }
-                });
-                // Render clone modifiers with saved values
-                renderCloneModifiers(parseInt(settings.n_clones) || 1);
-            } else {
-                // Apply DEFAULTS to form fields
-                Object.entries(DEFAULTS).forEach(([key, value]) => {
-                    const el = document.getElementById(key);
-                    if (!el) return;
-                    if (el.type === "checkbox") {
-                        el.checked = !!value;
-                    } else {
-                        el.value = value;
-                    }
-                });
-                cloneModifiers = DEFAULTS.clone_modifiers.map(mod => ({...mod}));
             }
 
             // For selects and n_clones, trigger input event to update UI
@@ -444,13 +457,13 @@
                         step = 1;
                     } else if (['precision', 'hull', 'power', 'evasion'].includes(targetId)) {
                         step = 5;
-                    } else if (['dodge_percentage', 'rare_drop_increase', 'maneuverability'].includes(targetId)) {
+                    } else if (['dodge_percentage', 'rare_drop_increase', 'maneuverability', 'income_boost', 'reputation'].includes(targetId)) {
                         step = 1;
                     }
                     
                     val = Math.max(min, val - step);
                     // Round to 1 decimal place for percentage fields
-                    if (['dodge_percentage', 'rare_drop_increase', 'maneuverability'].includes(targetId)) {
+                    if (['dodge_percentage', 'rare_drop_increase', 'maneuverability', 'income_boost', 'reputation'].includes(targetId)) {
                         val = Math.round(val * 10) / 10;
                     }
                     input.value = val;
@@ -471,13 +484,13 @@
                         step = 1;
                     } else if (['precision', 'hull', 'power', 'evasion'].includes(targetId)) {
                         step = 5;
-                    } else if (['dodge_percentage', 'rare_drop_increase', 'maneuverability'].includes(targetId)) {
+                    } else if (['dodge_percentage', 'rare_drop_increase', 'maneuverability', 'income_boost', 'reputation'].includes(targetId)) {
                         step = 1;
                     }
                     
                     val = Math.min(max, val + step);
                     // Round to 1 decimal place for percentage fields
-                    if (['dodge_percentage', 'rare_drop_increase', 'maneuverability'].includes(targetId)) {
+                    if (['dodge_percentage', 'rare_drop_increase', 'maneuverability', 'income_boost', 'reputation'].includes(targetId)) {
                         val = Math.round(val * 10) / 10;
                     }
                     input.value = val;
@@ -539,11 +552,15 @@
                 const battle = new Battle({ player, mob, list_modifiers, verbose: false });
                 const win_chance = battle.repeat_fights(n_fights);
 
+                // Get income boost and reputation values
+                const income_boost = parseFloat(form.income_boost?.value || 0) / 100;
+                const reputation = parseFloat(form.reputation?.value || 0) / 100;
+
                 // Print result
-                const creditsPerHour = battle.get_revenue('hourly', win_chance);
-                const creditsPerDay = battle.get_revenue('daily', win_chance);
-                const expPerHour = battle.get_experience('hourly', win_chance);
-                const expPerDay = battle.get_experience('daily', win_chance);
+                const creditsPerHour = battle.get_revenue('hourly', win_chance, income_boost, reputation);
+                const creditsPerDay = battle.get_revenue('daily', win_chance, income_boost, reputation);
+                const expPerHour = battle.get_experience('hourly', win_chance, reputation);
+                const expPerDay = battle.get_experience('daily', win_chance, reputation);
                 battleResultDiv.innerHTML = `<b>Win chance:</b> ${(win_chance * 100).toFixed(2)}%<br>` +
                     `<b>Credits per hour:</b> ${millify(creditsPerHour)}/h<br>` +
                     `<b>Credits per day:</b> ${millify(creditsPerDay)}/day<br>` +
@@ -613,10 +630,15 @@
                         shield_ele2: player.shield_ele2
                     });
                     const battle = new Battle({ player: tmp_player, mob: mob, list_modifiers: list_modifiers });
-                    const creditsPerHour = battle.get_revenue('hourly', result.winChance);
-                    const creditsPerDay = battle.get_revenue('daily', result.winChance);
-                    const expPerHour = battle.get_experience('hourly', result.winChance);
-                    const expPerDay = battle.get_experience('daily', result.winChance);
+                    
+                    // Get income boost and reputation values
+                    const income_boost = parseFloat(form.income_boost?.value || 0) / 100;
+                    const reputation = parseFloat(form.reputation?.value || 0) / 100;
+
+                    const creditsPerHour = battle.get_revenue('hourly', result.winChance, income_boost, reputation);
+                    const creditsPerDay = battle.get_revenue('daily', result.winChance, income_boost, reputation);
+                    const expPerHour = battle.get_experience('hourly', result.winChance, reputation);
+                    const expPerDay = battle.get_experience('daily', result.winChance, reputation);
                     
                     // Update the stats
                     document.getElementById('opt_power').textContent = power;
@@ -667,11 +689,28 @@
             // Add event listeners to save settings when values change
             form.querySelectorAll('input, select').forEach(element => {
                 element.addEventListener('change', saveSettings);
+                if (element.type === 'number' || element.type === 'text') {
+                    element.addEventListener('input', saveSettings);
+                }
             });
 
             // For number inputs, also save on input event for immediate feedback
             form.querySelectorAll('input[type="number"]').forEach(element => {
                 element.addEventListener('input', saveSettings);
+            });
+
+            // Add event listeners for all minus/plus buttons
+            document.querySelectorAll('.minus-btn, .plus-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const targetId = btn.getAttribute('data-target');
+                    if (targetId) {
+                        const input = document.getElementById(targetId);
+                        if (input) {
+                            input.dispatchEvent(new Event('input'));
+                            saveSettings();
+                        }
+                    }
+                });
             });
 
             // Modify the clone modifiers event listeners to save settings
@@ -690,6 +729,141 @@
                 originalRenderCloneModifiers(n);
                 addCloneModifierListeners();
             };
+            
+            
+            // Add API import functionality
+            const importBtn = document.getElementById('importBtn');
+            const apiKeyInput = document.getElementById('api_key');
+            
+            async function fetchUserData(apiKey) {
+                try {
+                    const response = await axios({
+                        method: 'get',
+                        url: `https://api.stellarodyssey.app/api/public/user?apikey=${apiKey}`,
+                        headers: {
+                            'Accept': 'application/json'
+                        },
+                        timeout: 5000
+                    });
+                    console.log('Axios response headers:', response.headers);
+                    return response.data;
+                } catch (error) {
+                    console.log('Full error object:', error);
+                    console.log('Error response:', error.response);
+                    console.log('Error request:', error.request);
+                    console.log('Error config:', error.config);
+                    
+                    let errorMessage = 'Failed to fetch user data. ';
+                    
+                    if (error.response) {
+                        if (error.response.status === 401) {
+                            errorMessage += 'Invalid API key.';
+                        } else if (error.response.status === 404) {
+                            errorMessage += 'User not found.';
+                        } else {
+                            errorMessage += `Server responded with status ${error.response.status}.`;
+                        }
+                    } else if (error.code === 'ECONNABORTED') {
+                        errorMessage += 'Request timed out.';
+                    } else if (error.code === 'ERR_NETWORK') {
+                        if (error.message.includes('CORS')) {
+                            errorMessage += 'CORS error: The API server is not configured to allow requests from this domain. Please contact the API administrators.';
+                        } else {
+                            errorMessage += 'Network error. Please check your internet connection.';
+                        }
+                    } else {
+                        errorMessage += error.message;
+                    }
+                    
+                    console.error('API Error Details:', error);
+                    throw new Error(errorMessage);
+                }
+            }
+
+            function updateFormWithUserData(userData) {
+                const data = userData.data;
+                
+                document.getElementById('power').value = data.stats.power;
+                document.getElementById('precision').value = data.stats.precision;
+                document.getElementById('evasion').value = data.stats.evasion;
+                document.getElementById('hull').value = data.stats.hull;
+                document.getElementById('vip_status').checked = data.premium;
+                
+                const weapon = data.ship.weapon;
+                const shield = data.ship.shield;
+                
+                document.getElementById('weapon_dmg').value = weapon.value;
+                document.getElementById('shield_def').value = shield.value;
+                
+                if (weapon.bonuses && weapon.bonuses.length > 0) {
+                    const firstBonus = weapon.bonuses[0].charAt(0).toUpperCase() + weapon.bonuses[0].slice(1);
+                    document.getElementById('weapon_ele1').value = firstBonus;
+                    
+                    if (weapon.bonuses.length > 1 && weapon.bonuses[1]) {
+                        const secondBonus = weapon.bonuses[1].charAt(0).toUpperCase() + weapon.bonuses[1].slice(1);
+                        document.getElementById('weapon_ele2').value = secondBonus;
+                    } else {
+                        document.getElementById('weapon_ele2').value = "";
+                    }
+                }
+                
+                if (shield.bonuses && shield.bonuses.length > 0) {
+                    const firstBonus = shield.bonuses[0].charAt(0).toUpperCase() + shield.bonuses[0].slice(1);
+                    document.getElementById('shield_ele1').value = firstBonus;
+                    
+                    if (shield.bonuses.length > 1 && shield.bonuses[1]) {
+                        const secondBonus = shield.bonuses[1].charAt(0).toUpperCase() + shield.bonuses[1].slice(1);
+                        document.getElementById('shield_ele2').value = secondBonus;
+                    } else {
+                        document.getElementById('shield_ele2').value = "";
+                    }
+                }
+                
+                const nClones = data.clones.length;
+                document.getElementById('n_clones').value = nClones;
+                
+                cloneModifiers = data.clones.map(clone => ({
+                    crit: clone.critical_chance,
+                    critdmg: clone.critical_damage,
+                    dual: clone.dual_shot
+                }));
+
+                if (data.actions) {
+                    const mobName = data.actions.currentNpc.charAt(0).toUpperCase() + data.actions.currentNpc.slice(1);
+                    document.getElementById('mob_name').value = mobName;
+                    document.getElementById('mob_level').value = data.actions.currentNpcLevel;
+                }
+                
+                const nClonesInput = document.getElementById('n_clones');
+                nClonesInput.dispatchEvent(new Event('input'));
+                
+                saveSettings();
+            }
+
+            importBtn.addEventListener('click', async () => {
+                const apiKey = apiKeyInput.value.trim();
+                if (!apiKey) {
+                    alert('Please enter your API key');
+                    return;
+                }
+
+                try {
+                    importBtn.disabled = true;
+                    importBtn.textContent = 'Importing...';
+
+                    const userData = await fetchUserData(apiKey);
+                    updateFormWithUserData(userData);
+                    
+                    importBtn.disabled = false;
+                    importBtn.textContent = 'Import';
+                } catch (error) {
+                    alert(error.message);
+                    
+                    importBtn.disabled = false;
+                    importBtn.textContent = 'Import';
+                }
+            });
+   
         });
     </script>
 </head>
@@ -848,6 +1022,29 @@
                     </div>
                 </div>
             </div>
+            <div class="mob-block" style="width: 420px; min-width: 420px; max-width: 420px;">
+                <div class="block-label">Squadron Buffs</div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="income_boost">Space station:</label>
+                        <div class="input-group">
+                            <button type="button" class="minus-btn" data-target="income_boost">-</button>
+                            <input type="number" id="income_boost" name="income_boost" value="0" min="0" max="100" step="0.1" style="width: 5.5em; background: #36405a; color: #e6eaf3; border: 1px solid #2c3242;">
+                            <span style="margin: 0 0.2em;">%</span>
+                            <button type="button" class="plus-btn" data-target="income_boost">+</button>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="reputation">Reputation:</label>
+                        <div class="input-group">
+                            <button type="button" class="minus-btn" data-target="reputation">-</button>
+                            <input type="number" id="reputation" name="reputation" value="0" min="0" max="100" step="0.1" style="width: 5.5em; background: #36405a; color: #e6eaf3; border: 1px solid #2c3242;">
+                            <span style="margin: 0 0.2em;">%</span>
+                            <button type="button" class="plus-btn" data-target="reputation">+</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
         <div style="display: flex; flex-direction: row; align-items: flex-start;">
             <div style="position: relative; width: fit-content;">
@@ -859,6 +1056,20 @@
                 <div id="cloneModifiersSection" class="clone-modifiers-section"></div>
             </div>
             <div style="display: flex; flex-direction: column; align-items: flex-start; margin-left: 7.5em;">
+                <div class="api-block" style="margin-top: 0; margin-left: 5px; min-height: 110px; max-height: 110px; width: 450px; min-width: 450px; max-width: 450px; background: #23283a; border-radius: 6px; border: 1px solid #2c3242; padding: 0.7em 1.2em 0.5em 1.2em; box-sizing: border-box;">
+                    <div class="block-label">Import data
+                        <span style="color: #4fa3ff; margin-left: 5px; cursor: help;" title="Import your player, mob and clone stats using your API key. This will automatically fill in all your current stats. Your API key is located in Settings">ⓘ</span>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group" style="flex: 1;">
+                            <label for="api_key">API Key:</label>
+                            <input type="text" id="api_key" name="api_key" style="width: 150%; background: #36405a; color: #e6eaf3; border: 1px solid #2c3242; padding: 0.2em;">
+                        </div>
+                        <div class="form-group" style="align-items: flex-start; justify-content: flex-start; margin-left: 110px;">
+                            <button id="importBtn" type="button">Import</button>
+                        </div>
+                    </div>
+                </div>
                 <div class="battle-block" style="margin-top: 0.0em; margin-left: 5px; min-height: 210px; max-height: 210px;width: 350px; min-width: 350px; max-width: 350px">
                     <div class="block-label">Battle Simulation
                         <span style="color: #4fa3ff; margin-left: 5px; cursor: help;" title="Run a battle simulation with the current configuration. The simulation will execute the specified number of battles (up to 1,000,000) to calculate win probability and resource gains.">ⓘ</span>
@@ -876,6 +1087,7 @@
                 <div class="optimizer-block" style="margin-top: 1.5em; margin-left: 5px; width: 500px; min-width: 500px; max-width: 500px; min-height: 210px;">
                     <div class="block-label">Optimizer
                         <span style="color: #4fa3ff; margin-left: 5px; cursor: help;" title="Find the optimal stat distribution for your current configuration. The optimizer will test various stat combinations using the specified number of simulations (up to 1,000,000). Higher values provide more accurate results but significantly increase computation time and may temporarily freeze the interface. Consider starting with a lower number and increasing it if needed.">ⓘ</span>
+                        <span style="color: #ff4f4f; margin-left: 10px; font-size: 0.85em; font-weight: normal;">Optimizer is currently unreliable for mob levels > 100. Use with caution.</span>
                     </div>
                     <div class="form-row">
                         <div class="form-group">
@@ -903,7 +1115,11 @@
                         </div>
                     </div>
                 </div>
-                <div class="optimizer-block" style="margin-top: 1.5em; margin-left: 5px; width: 500px; min-width: 500px; max-width: 500px; min-height: 210px;">
+                <div class="optimizer-block" style="margin-top: 1.0em; margin-left: 5px; width: 500px; min-width: 500px; max-width: 500px; min-height: 210px; position: relative;">
+                    <div style="position: absolute; top: 0.5em; right: 1em; text-align: left; font-size: 0.75em; color: #b0b6c6; line-height: 1.2;">
+                        For a more precise resources<br>
+                        calculator, see this <a href="https://docs.google.com/spreadsheets/d/1DCpkdBsHL_dqa_Fv13k3M1iKVuBCa4vXbfTjToQ64G8/edit?gid=1892479921#gid=1892479921" target="_blank" style="color: #4fa3ff; text-decoration: none;">Google Sheet</a>
+                    </div>
                     <div class="block-label">Resources Calculator
                         <span style="color: #4fa3ff; margin-left: 5px; cursor: help;" title="Calculate resource gathering rates and time to reach specific goals based on your current setup.
 • 'Resources' and 'Rare resources' per action refer to what you are currently gathering on your current planet
@@ -985,10 +1201,10 @@
         </div>
     </form>
     <div id="playerResult"></div>
-    <footer style="margin-top: 12em; font-size: 1em; color: #928e8e; text-align: left;">
+    <footer style="margin-top: -2.5em; font-size: 1em; color: #928e8e; text-align: left;">
         <span>Proudly made by anfneub</span>
         <span style="margin-left: 2.5em;" id="lastUpdated"></span>
-        <span style="margin-left: 2.5em;">Space Odyssey Version 1.0.9 2025-05-07</span>
+        <span style="margin-left: 2.5em;">Space Odyssey Version 1.0.16 2025-05-25</span>
         <span style="margin-left: 2.5em; cursor: pointer; color: #4fa3ff; text-decoration: underline;" id="changelogLink">Changelog</span>
     </footer>
     <script>
@@ -997,8 +1213,8 @@
         if (lastUpdated) {
             const now = new Date();
             const pad = n => n.toString().padStart(2, '0');
-            const dateStr = "2025-05-09";
-            const timeStr = "16:32";
+            const dateStr = "2025-05-25";
+            const timeStr = "11:50";
             lastUpdated.textContent = `Last updated: ${dateStr} ${timeStr}`;
         }
     </script>
