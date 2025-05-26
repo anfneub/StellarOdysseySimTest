@@ -1,3 +1,9 @@
+2025-05-26 09:17
+- Introduced tab visaulization and tab "Universe Map"
+
+2025-05-25 16:34
+- Included API endpoint for fast player data import
+
 2025-05-25 11:50
 - Updates NPC values scaling as per new patch 
 

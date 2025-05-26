@@ -7,6 +7,47 @@
     <style>
         body { font-family: Arial, sans-serif; margin: 2em; background: #181c24; color: #e6eaf3; }
         .form-section { max-width: 1100px; margin-left: 0; margin-right: auto; display: flex; flex-direction: row; gap: 2em; }
+        
+        /* Tab styles */
+        .tab-container {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background: #23283a;
+            border-top: 1px solid #2c3242;
+            display: flex;
+            padding: 0.3em 2em;
+            z-index: 1000;
+        }
+        .tab {
+            padding: 0.8em 1.5em;
+            background: #36405a;
+            border: 1px solid #2c3242;
+            border-bottom: none;
+            border-radius: 4px 4px 0 0;
+            margin-right: 0.2em;
+            cursor: pointer;
+            color: #e6eaf3;
+            transition: background 0.2s;
+        }
+        .tab:hover {
+            background: #4a5a7c;
+        }
+        .tab.active {
+            background: #23283a;
+            border-bottom: 1px solid #23283a;
+            margin-bottom: -1px;
+        }
+        .tab-content {
+            display: none;
+            margin-bottom: 3em; /* Space for tabs */
+        }
+        .tab-content.active {
+            display: block;
+        }
+        /* End tab styles */
+
         .form-section > div:first-child { flex: none; width: 420px; min-width: 420px; }
         .form-row { display: flex; gap: 1em; margin-bottom: 1em; }
         .form-group { flex: 1; display: flex; flex-direction: column; min-width: 180px; color: #e6eaf3; font-size: 1.08em; }
@@ -232,7 +273,17 @@
             min-height: 230px;
             color: #e6eaf3;
         }
-        footer { color: #b0b6c6; font-size: 0.98em; }
+        footer {
+            position: fixed;
+            bottom: 3.2em;
+            left: 2em;
+            font-size: 1em;
+            color: #928e8e;
+            text-align: left;
+            z-index: 999;
+            background: #181c24;
+            padding: 0.5em 0;
+        }
         #n_fights {
             background: #36405a;
             color: #e6eaf3;
@@ -277,6 +328,47 @@
             const cloneModifiersSection = document.getElementById('cloneModifiersSection');
             let cloneModifiers = [];
 
+            // Function to save all settings to localStorage
+            function saveSettings() {
+                const settings = {
+                    // Player stats
+                    power: form.power.value,
+                    precision: form.precision.value,
+                    evasion: form.evasion.value,
+                    hull: form.hull.value,
+                    weapon_dmg: form.weapon_dmg.value,
+                    shield_def: form.shield_def.value,
+                    n_clones: form.n_clones.value,
+                    weapon_ele1: form.weapon_ele1.value,
+                    weapon_ele2: form.weapon_ele2.value,
+                    shield_ele1: form.shield_ele1.value,
+                    shield_ele2: form.shield_ele2.value,
+                    vip_status: form.vip_status.checked,
+                    // Mob settings
+                    mob_name: form.mob_name.value,
+                    mob_level: form.mob_level.value,
+                    // Squadron buffs
+                    income_boost: form.income_boost?.value || 0,
+                    reputation: form.reputation?.value || 0,
+                    // Clone modifiers
+                    clone_modifiers: cloneModifiers,
+                    // Resources calculator
+                    resources_per_action: document.getElementById('resources_per_action').value,
+                    rare_resources_per_action: document.getElementById('rare_resources_per_action').value,
+                    number_of_drones: document.getElementById('number_of_drones').value,
+                    dodge_percentage: document.getElementById('dodge_percentage').value,
+                    rare_drop_increase: document.getElementById('rare_drop_increase').value,
+                    maneuverability: document.getElementById('maneuverability').value,
+                    // Optimizer settings
+                    optimizer_target: document.querySelector('input[name="optimize_target"]:checked').value,
+                    optimizer_htk: document.getElementById('optimizer_htk').value,
+                    optimizer_htd: document.getElementById('optimizer_htd').value,
+                    // API key
+                    api_key: form.api_key?.value || ''
+                };
+                localStorage.setItem('stellarOdysseySettings', JSON.stringify(settings));
+            }
+
             // Load saved settings or use defaults
             const savedSettings = localStorage.getItem('stellarOdysseySettings');
             if (savedSettings) {
@@ -284,6 +376,9 @@
                 Object.entries(settings).forEach(([key, value]) => {
                     if (key === 'clone_modifiers') {
                         cloneModifiers = value;
+                    } else if (key === 'optimizer_target') {
+                        const radio = document.querySelector(`input[name="optimize_target"][value="${value}"]`);
+                        if (radio) radio.checked = true;
                     } else {
                         const el = document.getElementById(key);
                         if (!el) return;
@@ -315,48 +410,13 @@
                 renderCloneModifiers(parseInt(DEFAULTS.n_clones) || 1);
             }
 
-            // Function to save all settings to localStorage
-            function saveSettings() {
-                const settings = {
-                    // Player stats
-                    power: form.power.value,
-                    precision: form.precision.value,
-                    evasion: form.evasion.value,
-                    hull: form.hull.value,
-                    weapon_dmg: form.weapon_dmg.value,
-                    shield_def: form.shield_def.value,
-                    n_clones: form.n_clones.value,
-                    weapon_ele1: form.weapon_ele1.value,
-                    weapon_ele2: form.weapon_ele2.value,
-                    shield_ele1: form.shield_ele1.value,
-                    shield_ele2: form.shield_ele2.value,
-                    vip_status: form.vip_status.checked,
-                    // Mob settings
-                    mob_name: form.mob_name.value,
-                    mob_level: form.mob_level.value,
-                    // Squadron buffs
-                    income_boost: form.income_boost?.value || 0,
-                    reputation: form.reputation?.value || 0,
-                    // Clone modifiers
-                    clone_modifiers: cloneModifiers,
-                    // Resources calculator
-                    resources_per_action: form.resources_per_action?.value || 0,
-                    rare_resources_per_action: form.rare_resources_per_action?.value || 0,
-                    number_of_drones: form.number_of_drones?.value || 1,
-                    dodge_percentage: form.dodge_percentage?.value || 0,
-                    rare_drop_increase: form.rare_drop_increase?.value || 0,
-                    maneuverability: form.maneuverability?.value || 0
-                };
-                localStorage.setItem('stellarOdysseySettings', JSON.stringify(settings));
-            }
-
             // For selects and n_clones, trigger input event to update UI
             const nClonesInput = document.getElementById('n_clones');
             nClonesInput.addEventListener('input', () => {
                 let n = Math.min(Math.max(parseInt(nClonesInput.value) || 1, 1), 10);
                 nClonesInput.value = n;
                 if (cloneModifiers.length > n) {
-                    cloneModifiers = cloneModifiers.slice(0, n);
+                    cloneModifiers = cloneModifiers.slice(0, n);re
                 } else if (cloneModifiers.length < n) {
                     while (cloneModifiers.length < n) {
                         cloneModifiers.push({ crit: 0.0, critdmg: 0.0, dual: 0.0 });
@@ -453,7 +513,7 @@
                     
                     // Define step values for different fields
                     let step = 10; // default step
-                    if (['n_clones', 'number_of_drones'].includes(targetId)) {
+                    if (['n_clones', 'number_of_drones', 'optimizer_htk', 'optimizer_htd'].includes(targetId)) {
                         step = 1;
                     } else if (['precision', 'hull', 'power', 'evasion'].includes(targetId)) {
                         step = 5;
@@ -480,7 +540,7 @@
                     
                     // Define step values for different fields
                     let step = 10; // default step
-                    if (['n_clones', 'number_of_drones'].includes(targetId)) {
+                    if (['n_clones', 'number_of_drones', 'optimizer_htk', 'optimizer_htd'].includes(targetId)) {
                         step = 1;
                     } else if (['precision', 'hull', 'power', 'evasion'].includes(targetId)) {
                         step = 5;
@@ -570,8 +630,16 @@
 
             // Optimizer logic
             const optimizerBtn = document.getElementById('optimizerBtn');
+            const longOptimizerBtn = document.getElementById('longOptimizerBtn');
             const optimizerResultDiv = document.getElementById('optimizerResult');
-            optimizerBtn.addEventListener('click', () => {
+            
+            async function runOptimizer(isLongOptimize = false) {
+                // Reset progress bar
+                const progressBar = document.getElementById('optimizerProgressBar');
+                const progressText = document.getElementById('optimizerProgressText');
+                progressBar.style.width = '0%';
+                progressText.textContent = '0%';
+
                 // Gather player fields
                 const power = parseInt(form.power.value) || 0;
                 const precision = parseInt(form.precision.value) || 0;
@@ -609,10 +677,84 @@
 
                 const optimizerFightsInput = document.getElementById('optimizer_n_fights');
                 const n_fights = parseInt(optimizerFightsInput.value);
-                const optimizer = new Optimizer(player, mob, list_modifiers, n_fights);
+                const reputation = parseFloat(form.reputation?.value || 0) / 100;
+                const optimizer = new Optimizer(player, mob, list_modifiers, n_fights, reputation);
                 let result;
-                result = optimizer.optimize();
                 
+                if (isLongOptimize) {
+                    const target = document.querySelector('input[name="optimize_target"]:checked').value;
+                    const range_htk = Array.from({length: 7}, (_, i) => i + 4); // range(4,11)
+                    const range_htd = Array.from({length: 4}, (_, i) => i + 3); // range(3,7)
+                    const totalIterations = range_htk.length * range_htd.length;
+                    let currentIteration = 0;
+
+                    let best_build = [0, 0, 0, 0];
+                    let best_res = 0;
+                    let best_htk = 0;
+                    let best_htd = 0;
+                    let best_win_chance = 0;
+
+                    for (const htk of range_htk) {
+                        for (const htd of range_htd) {
+                            const [build, res, win_chance] = optimizer.findBestBuild(htd, htk, target);
+                            if (res > best_res) {
+                                best_res = res;
+                                best_build = build;
+                                best_htk = htk;
+                                best_htd = htd;
+                                best_win_chance = win_chance;
+                            }
+
+                            // Update progress
+                            currentIteration++;
+                            const progress = (currentIteration / totalIterations) * 100;
+                            progressBar.style.width = `${progress}%`;
+                            progressText.textContent = `${Math.round(progress)}%`;
+                            
+                            // Allow UI to update
+                            await new Promise(resolve => setTimeout(resolve, 0));
+                        }
+                    }
+
+                    result = { bestStats: best_build, winChance: best_win_chance };
+                    
+                    // Update HTK and HTD fields with the optimal values
+                    document.getElementById('optimizer_htk').value = best_htk;
+                    document.getElementById('optimizer_htd').value = best_htd;
+                    
+                    // Save the new values to localStorage
+                    const settings = JSON.parse(localStorage.getItem('stellarOdysseySettings') || '{}');
+                    settings.optimizer_htk = best_htk;
+                    settings.optimizer_htd = best_htd;
+                    localStorage.setItem('stellarOdysseySettings', JSON.stringify(settings));
+                } else {
+                    const target = document.querySelector('input[name="optimize_target"]:checked').value;
+                    const htk = parseInt(document.getElementById('optimizer_htk').value);
+                    const htd = parseInt(document.getElementById('optimizer_htd').value);
+                    
+                    // Simple smooth progress over exactly 1 second
+                    const startTime = Date.now();
+                    const duration = 1000; // 1 second
+                    
+                    const animateProgress = () => {
+                        const elapsed = Date.now() - startTime;
+                        const progress = Math.min(elapsed / duration * 100, 100);
+                        
+                        progressBar.style.width = `${progress}%`;
+                        progressText.textContent = `${Math.round(progress)}%`;
+                        
+                        if (progress < 100) {
+                            requestAnimationFrame(animateProgress);
+                        }
+                    };
+                    
+                    requestAnimationFrame(animateProgress);
+
+                    const [bestBuild, bestRes, bestWinChance] = optimizer.findBestBuild(htd, htk, target, false);
+                    result = { bestStats: bestBuild, winChance: bestWinChance };
+                }
+
+                // Update the results display
                 if (result && result.bestStats && result.winChance !== undefined) {
                     const [power, precision, evasion, hull] = result.bestStats;
                     const tmp_player = new Player({
@@ -684,7 +826,10 @@
                     let importBtn = document.getElementById('importOptimizedBtn');
                     if (importBtn) importBtn.style.display = 'none';
                 }
-            });
+            }
+
+            optimizerBtn.addEventListener('click', () => runOptimizer(false));
+            longOptimizerBtn.addEventListener('click', () => runOptimizer(true));
 
             // Add event listeners to save settings when values change
             form.querySelectorAll('input, select').forEach(element => {
@@ -745,14 +890,9 @@
                         },
                         timeout: 5000
                     });
-                    console.log('Axios response headers:', response.headers);
                     return response.data;
                 } catch (error) {
-                    console.log('Full error object:', error);
-                    console.log('Error response:', error.response);
-                    console.log('Error request:', error.request);
-                    console.log('Error config:', error.config);
-                    
+
                     let errorMessage = 'Failed to fetch user data. ';
                     
                     if (error.response) {
@@ -775,7 +915,6 @@
                         errorMessage += error.message;
                     }
                     
-                    console.error('API Error Details:', error);
                     throw new Error(errorMessage);
                 }
             }
@@ -783,56 +922,86 @@
             function updateFormWithUserData(userData) {
                 const data = userData.data;
                 
-                document.getElementById('power').value = data.stats.power;
-                document.getElementById('precision').value = data.stats.precision;
-                document.getElementById('evasion').value = data.stats.evasion;
-                document.getElementById('hull').value = data.stats.hull;
-                document.getElementById('vip_status').checked = data.premium;
-                
-                const weapon = data.ship.weapon;
-                const shield = data.ship.shield;
-                
-                document.getElementById('weapon_dmg').value = weapon.value;
-                document.getElementById('shield_def').value = shield.value;
-                
-                if (weapon.bonuses && weapon.bonuses.length > 0) {
-                    const firstBonus = weapon.bonuses[0].charAt(0).toUpperCase() + weapon.bonuses[0].slice(1);
-                    document.getElementById('weapon_ele1').value = firstBonus;
-                    
-                    if (weapon.bonuses.length > 1 && weapon.bonuses[1]) {
-                        const secondBonus = weapon.bonuses[1].charAt(0).toUpperCase() + weapon.bonuses[1].slice(1);
-                        document.getElementById('weapon_ele2').value = secondBonus;
-                    } else {
-                        document.getElementById('weapon_ele2').value = "";
-                    }
+                // Update form fields with API data
+                if (data.stats) {
+                    form.power.value = data.stats.power || 0;
+                    form.precision.value = data.stats.precision || 0;
+                    form.evasion.value = data.stats.evasion || 0;
+                    form.hull.value = data.stats.hull || 0;
                 }
-                
-                if (shield.bonuses && shield.bonuses.length > 0) {
-                    const firstBonus = shield.bonuses[0].charAt(0).toUpperCase() + shield.bonuses[0].slice(1);
-                    document.getElementById('shield_ele1').value = firstBonus;
-                    
-                    if (shield.bonuses.length > 1 && shield.bonuses[1]) {
-                        const secondBonus = shield.bonuses[1].charAt(0).toUpperCase() + shield.bonuses[1].slice(1);
-                        document.getElementById('shield_ele2').value = secondBonus;
-                    } else {
-                        document.getElementById('shield_ele2').value = "";
-                    }
-                }
-                
-                const nClones = data.clones.length;
-                document.getElementById('n_clones').value = nClones;
-                
-                cloneModifiers = data.clones.map(clone => ({
-                    crit: clone.critical_chance,
-                    critdmg: clone.critical_damage,
-                    dual: clone.dual_shot
-                }));
 
-                if (data.actions) {
-                    const mobName = data.actions.currentNpc.charAt(0).toUpperCase() + data.actions.currentNpc.slice(1);
-                    document.getElementById('mob_name').value = mobName;
-                    document.getElementById('mob_level').value = data.actions.currentNpcLevel;
+                // Update ship data
+                if (data.ship) {
+                    if (data.ship.weapon) {
+                        form.weapon_dmg.value = data.ship.weapon.value || 0;
+                        if (data.ship.weapon.bonuses && data.ship.weapon.bonuses.length > 0) {
+                            form.weapon_ele1.value = data.ship.weapon.bonuses[0].charAt(0).toUpperCase() + data.ship.weapon.bonuses[0].slice(1);
+                            if (data.ship.weapon.bonuses.length > 1) {
+                                form.weapon_ele2.value = data.ship.weapon.bonuses[1].charAt(0).toUpperCase() + data.ship.weapon.bonuses[1].slice(1);
+                            } else {
+                                form.weapon_ele2.value = '';
+                            }
+                        } else {
+                            form.weapon_ele1.value = '';
+                            form.weapon_ele2.value = '';
+                        }
+                    }
+
+                    if (data.ship.shield) {
+                        form.shield_def.value = data.ship.shield.value || 0;
+                        if (data.ship.shield.bonuses && data.ship.shield.bonuses.length > 0) {
+                            form.shield_ele1.value = data.ship.shield.bonuses[0].charAt(0).toUpperCase() + data.ship.shield.bonuses[0].slice(1);
+                            if (data.ship.shield.bonuses.length > 1) {
+                                form.shield_ele2.value = data.ship.shield.bonuses[1].charAt(0).toUpperCase() + data.ship.shield.bonuses[1].slice(1);
+                            } else {
+                                form.shield_ele2.value = '';
+                            }
+                        } else {
+                            form.shield_ele1.value = '';
+                            form.shield_ele2.value = '';
+                        }
+                    }
                 }
+
+                // Update VIP status
+                form.vip_status.checked = data.premium || false;
+
+                // Update number of clones and clone modifiers
+                if (data.clones && data.clones.length > 0) {
+                    form.n_clones.value = data.clones.length;
+                    cloneModifiers = data.clones.map(clone => ({
+                        crit: clone.critical_chance || 0,
+                        critdmg: clone.critical_damage || 0,
+                        dual: clone.dual_shot || 0
+                    }));
+                }
+
+                // Update current mob and level
+                if (data.actions) {
+                    if (data.actions.currentNpc) {
+                        form.mob_name.value = data.actions.currentNpc.charAt(0).toUpperCase() + data.actions.currentNpc.slice(1);
+                    }
+                    if (data.actions.currentNpcLevel) {
+                        form.mob_level.value = data.actions.currentNpcLevel;
+                    }
+                }
+
+                // Handle spacestation incomeboost
+                if (data.spacestation && data.spacestation.incomeboost) {
+                    form.income_boost.value = data.spacestation.incomeboost * 2.0;
+                } else {
+                    form.income_boost.value = 0;
+                }
+
+                // Handle reputation
+                if (data.reputation !== null && data.reputation !== undefined) {
+                    form.reputation.value = (data.reputation * 0.2).toFixed(1);
+                } else {
+                    form.reputation.value = 0;
+                }
+
+                // Render clone modifiers with the new data
+                renderCloneModifiers(parseInt(form.n_clones.value) || 1);
                 
                 const nClonesInput = document.getElementById('n_clones');
                 nClonesInput.dispatchEvent(new Event('input'));
@@ -869,352 +1038,446 @@
 </head>
 <body>
     <div style="font-size: 1.7em; font-weight: 600; margin-bottom: 1.2em; letter-spacing: 0.01em;">Stellar Odyssey Simulator and Optimizer</div>
-    <form id="playerForm" class="form-section" autocomplete="off" style="display: flex; flex-direction: row; gap: 2em;">
-        <div style="flex: 3;">
-            <div class="player-block" style="width: 420px; min-width: 420px; max-width: 420px;">
-                <div class="block-label">Player</div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="power">Power:</label>
-                        <div class="input-group">
-                            <button type="button" class="minus-btn" data-target="power">-</button>
-                            <input type="number" id="power" name="power" value="0" min="0">
-                            <button type="button" class="plus-btn" data-target="power">+</button>
+    
+    <!-- Tab content sections -->
+    <div id="battling-tab" class="tab-content active">
+        <form id="playerForm" class="form-section" autocomplete="off" style="display: flex; flex-direction: row; gap: 2em;">
+            <div style="flex: 3;">
+                <div class="player-block" style="width: 420px; min-width: 420px; max-width: 420px;">
+                    <div class="block-label">Player</div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="power">Power:</label>
+                            <div class="input-group">
+                                <button type="button" class="minus-btn" data-target="power">-</button>
+                                <input type="number" id="power" name="power" value="0" min="0">
+                                <button type="button" class="plus-btn" data-target="power">+</button>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="precision">Precision:</label>
+                            <div class="input-group">
+                                <button type="button" class="minus-btn" data-target="precision">-</button>
+                                <input type="number" id="precision" name="precision" value="0" min="0">
+                                <button type="button" class="plus-btn" data-target="precision">+</button>
+                            </div>
                         </div>
                     </div>
-                    <div class="form-group">
-                        <label for="precision">Precision:</label>
-                        <div class="input-group">
-                            <button type="button" class="minus-btn" data-target="precision">-</button>
-                            <input type="number" id="precision" name="precision" value="0" min="0">
-                            <button type="button" class="plus-btn" data-target="precision">+</button>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="evasion">Evasion:</label>
+                            <div class="input-group">
+                                <button type="button" class="minus-btn" data-target="evasion">-</button>
+                                <input type="number" id="evasion" name="evasion" value="0" min="0">
+                                <button type="button" class="plus-btn" data-target="evasion">+</button>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="hull">Hull:</label>
+                            <div class="input-group">
+                                <button type="button" class="minus-btn" data-target="hull">-</button>
+                                <input type="number" id="hull" name="hull" value="0" min="0">
+                                <button type="button" class="plus-btn" data-target="hull">+</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="weapon_dmg">Weapon Damage:</label>
+                            <div class="input-group">
+                                <button type="button" class="minus-btn" data-target="weapon_dmg">-</button>
+                                <input type="number" id="weapon_dmg" name="weapon_dmg" value="0" min="0">
+                                <button type="button" class="plus-btn" data-target="weapon_dmg">+</button>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="shield_def">Shield Defense:</label>
+                            <div class="input-group">
+                                <button type="button" class="minus-btn" data-target="shield_def">-</button>
+                                <input type="number" id="shield_def" name="shield_def" value="0" min="0">
+                                <button type="button" class="plus-btn" data-target="shield_def">+</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="weapon_ele1">Weapon Modification 1:</label>
+                            <select id="weapon_ele1" name="weapon_ele1">
+                                <option value="">None</option>
+                                <option value="Chemical">Chemical</option>
+                                <option value="Electromagnetic">Electromagnetic</option>
+                                <option value="Energy">Energy</option>
+                                <option value="Explosive">Explosive</option>
+                                <option value="Incendiary">Incendiary</option>
+                                <option value="Kinetic">Kinetic</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="weapon_ele2">Weapon Modification 2:</label>
+                            <select id="weapon_ele2" name="weapon_ele2">
+                                <option value="">None</option>
+                                <option value="Chemical">Chemical</option>
+                                <option value="Electromagnetic">Electromagnetic</option>
+                                <option value="Energy">Energy</option>
+                                <option value="Explosive">Explosive</option>
+                                <option value="Incendiary">Incendiary</option>
+                                <option value="Kinetic">Kinetic</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="shield_ele1">Shield Modification 1:</label>
+                            <select id="shield_ele1" name="shield_ele1">
+                                <option value="">None</option>
+                                <option value="Chemical">Chemical</option>
+                                <option value="Electromagnetic">Electromagnetic</option>
+                                <option value="Energy">Energy</option>
+                                <option value="Explosive">Explosive</option>
+                                <option value="Incendiary">Incendiary</option>
+                                <option value="Kinetic">Kinetic</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="shield_ele2">Shield Modification 2:</label>
+                            <select id="shield_ele2" name="shield_ele2">
+                                <option value="">None</option>
+                                <option value="Chemical">Chemical</option>
+                                <option value="Electromagnetic">Electromagnetic</option>
+                                <option value="Energy">Energy</option>
+                                <option value="Explosive">Explosive</option>
+                                <option value="Incendiary">Incendiary</option>
+                                <option value="Kinetic">Kinetic</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="n_clones">Number of Clones:</label>
+                            <div class="input-group">
+                                <button type="button" class="minus-btn" data-target="n_clones">-</button>
+                                <input type="number" id="n_clones" name="n_clones" value="1" min="1" max="10">
+                                <button type="button" class="plus-btn" data-target="n_clones">+</button>
+                            </div>
+                        </div>
+                        <div class="form-group" style="align-items: flex-start; justify-content: flex-end;">
+                            <label for="vip_status" style="margin-bottom: 0;">
+                                <input type="checkbox" id="vip_status" name="vip_status">
+                                VIP Status
+                            </label>
                         </div>
                     </div>
                 </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="evasion">Evasion:</label>
-                        <div class="input-group">
-                            <button type="button" class="minus-btn" data-target="evasion">-</button>
-                            <input type="number" id="evasion" name="evasion" value="0" min="0">
-                            <button type="button" class="plus-btn" data-target="evasion">+</button>
+                <div class="mob-block" style="width: 420px; min-width: 420px; max-width: 420px;">
+                    <div class="block-label">Mob</div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="mob_name">Mob Name:</label>
+                            <select id="mob_name" name="mob_name">
+                                <option value="Brutes">Brutes</option>
+                                <option value="Dusters">Dusters</option>
+                                <option value="Machiners">Machiners</option>
+                                <option value="Toxoids">Toxoids</option>
+                                <option value="Scorchers">Scorchers</option>
+                                <option value="Glacials">Glacials</option>
+                                <option value="Specters">Specters</option>
+                                <option value="Miners">Miners</option>
+                            </select>
                         </div>
-                    </div>
-                    <div class="form-group">
-                        <label for="hull">Hull:</label>
-                        <div class="input-group">
-                            <button type="button" class="minus-btn" data-target="hull">-</button>
-                            <input type="number" id="hull" name="hull" value="0" min="0">
-                            <button type="button" class="plus-btn" data-target="hull">+</button>
-                        </div>
-                    </div>
-                </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="weapon_dmg">Weapon Damage:</label>
-                        <div class="input-group">
-                            <button type="button" class="minus-btn" data-target="weapon_dmg">-</button>
-                            <input type="number" id="weapon_dmg" name="weapon_dmg" value="0" min="0">
-                            <button type="button" class="plus-btn" data-target="weapon_dmg">+</button>
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label for="shield_def">Shield Defense:</label>
-                        <div class="input-group">
-                            <button type="button" class="minus-btn" data-target="shield_def">-</button>
-                            <input type="number" id="shield_def" name="shield_def" value="0" min="0">
-                            <button type="button" class="plus-btn" data-target="shield_def">+</button>
+                        <div class="form-group">
+                            <label for="mob_level">Level:</label>
+                            <div class="input-group">
+                                <button type="button" class="minus-btn" data-target="mob_level">-</button>
+                                <input type="number" id="mob_level" name="mob_level" value="1" min="1">
+                                <button type="button" class="plus-btn" data-target="mob_level">+</button>
+                            </div>
                         </div>
                     </div>
                 </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="weapon_ele1">Weapon Modification 1:</label>
-                        <select id="weapon_ele1" name="weapon_ele1">
-                            <option value="">None</option>
-                            <option value="Chemical">Chemical</option>
-                            <option value="Electromagnetic">Electromagnetic</option>
-                            <option value="Energy">Energy</option>
-                            <option value="Explosive">Explosive</option>
-                            <option value="Incendiary">Incendiary</option>
-                            <option value="Kinetic">Kinetic</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="weapon_ele2">Weapon Modification 2:</label>
-                        <select id="weapon_ele2" name="weapon_ele2">
-                            <option value="">None</option>
-                            <option value="Chemical">Chemical</option>
-                            <option value="Electromagnetic">Electromagnetic</option>
-                            <option value="Energy">Energy</option>
-                            <option value="Explosive">Explosive</option>
-                            <option value="Incendiary">Incendiary</option>
-                            <option value="Kinetic">Kinetic</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="shield_ele1">Shield Modification 1:</label>
-                        <select id="shield_ele1" name="shield_ele1">
-                            <option value="">None</option>
-                            <option value="Chemical">Chemical</option>
-                            <option value="Electromagnetic">Electromagnetic</option>
-                            <option value="Energy">Energy</option>
-                            <option value="Explosive">Explosive</option>
-                            <option value="Incendiary">Incendiary</option>
-                            <option value="Kinetic">Kinetic</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="shield_ele2">Shield Modification 2:</label>
-                        <select id="shield_ele2" name="shield_ele2">
-                            <option value="">None</option>
-                            <option value="Chemical">Chemical</option>
-                            <option value="Electromagnetic">Electromagnetic</option>
-                            <option value="Energy">Energy</option>
-                            <option value="Explosive">Explosive</option>
-                            <option value="Incendiary">Incendiary</option>
-                            <option value="Kinetic">Kinetic</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="n_clones">Number of Clones:</label>
-                        <div class="input-group">
-                            <button type="button" class="minus-btn" data-target="n_clones">-</button>
-                            <input type="number" id="n_clones" name="n_clones" value="1" min="1" max="10">
-                            <button type="button" class="plus-btn" data-target="n_clones">+</button>
+                <div class="mob-block" style="width: 420px; min-width: 420px; max-width: 420px;">
+                    <div class="block-label">Squadron Buffs</div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="income_boost">Space station:</label>
+                            <div class="input-group">
+                                <button type="button" class="minus-btn" data-target="income_boost">-</button>
+                                <input type="number" id="income_boost" name="income_boost" value="0" min="0" max="100" step="0.1" style="width: 5.5em; background: #36405a; color: #e6eaf3; border: 1px solid #2c3242;">
+                                <span style="margin: 0 0.2em;">%</span>
+                                <button type="button" class="plus-btn" data-target="income_boost">+</button>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="reputation">Reputation:</label>
+                            <div class="input-group">
+                                <button type="button" class="minus-btn" data-target="reputation">-</button>
+                                <input type="number" id="reputation" name="reputation" value="0" min="0" max="100" step="0.1" style="width: 5.5em; background: #36405a; color: #e6eaf3; border: 1px solid #2c3242;">
+                                <span style="margin: 0 0.2em;">%</span>
+                                <button type="button" class="plus-btn" data-target="reputation">+</button>
+                            </div>
                         </div>
                     </div>
-                    <div class="form-group" style="align-items: flex-start; justify-content: flex-end;">
-                        <label for="vip_status" style="margin-bottom: 0;">
-                            <input type="checkbox" id="vip_status" name="vip_status">
-                            VIP Status
+                </div>
+            </div>
+            <div style="display: flex; flex-direction: row; align-items: flex-start;">
+                <div style="position: relative; width: fit-content;">
+                    <div style="position: absolute; left: 180px; top: -2.1em; z-index: 2;">
+                        <label style="font-size: 1.08em; display: flex; align-items: center; color: #e6eaf3; background: #23283a; padding: 0.1em 0.7em 0.1em 0.5em; border-radius: 5px; box-shadow: 0 2px 8px 0 rgba(0,0,0,0.04);">
+                            <input type="checkbox" id="modifyAllClones" style="margin-right: 0.5em;"> Modify all clones together
                         </label>
                     </div>
+                    <div id="cloneModifiersSection" class="clone-modifiers-section"></div>
                 </div>
-            </div>
-            <div class="mob-block" style="width: 420px; min-width: 420px; max-width: 420px;">
-                <div class="block-label">Mob</div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="mob_name">Mob Name:</label>
-                        <select id="mob_name" name="mob_name">
-                            <option value="Brutes">Brutes</option>
-                            <option value="Dusters">Dusters</option>
-                            <option value="Machiners">Machiners</option>
-                            <option value="Toxoids">Toxoids</option>
-                            <option value="Scorchers">Scorchers</option>
-                            <option value="Glacials">Glacials</option>
-                            <option value="Specters">Specters</option>
-                            <option value="Miners">Miners</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="mob_level">Level:</label>
-                        <div class="input-group">
-                            <button type="button" class="minus-btn" data-target="mob_level">-</button>
-                            <input type="number" id="mob_level" name="mob_level" value="1" min="1">
-                            <button type="button" class="plus-btn" data-target="mob_level">+</button>
+                <div style="display: flex; flex-direction: column; align-items: flex-start; margin-left: 7.5em;">
+                    <div class="api-block" style="margin-top: 0; margin-left: 5px; min-height: 110px; max-height: 110px; width: 450px; min-width: 450px; max-width: 450px; background: #23283a; border-radius: 6px; border: 1px solid #2c3242; padding: 0.7em 1.2em 0.5em 1.2em; box-sizing: border-box;">
+                        <div class="block-label">Import data
+                            <span style="color: #4fa3ff; margin-left: 5px; cursor: help;" title="Import your player, mob and clone stats using your API key. This will automatically fill in all your current stats. Your API key is located in Settings">ⓘ</span>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group" style="flex: 1;">
+                                <label for="api_key">API Key:</label>
+                                <input type="text" id="api_key" name="api_key" style="width: 150%; background: #36405a; color: #e6eaf3; border: 1px solid #2c3242; padding: 0.2em;">
+                            </div>
+                            <div class="form-group" style="align-items: flex-start; justify-content: flex-start; margin-left: 110px;">
+                                <button id="importBtn" type="button">Import</button>
+                            </div>
                         </div>
                     </div>
-                </div>
-            </div>
-            <div class="mob-block" style="width: 420px; min-width: 420px; max-width: 420px;">
-                <div class="block-label">Squadron Buffs</div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="income_boost">Space station:</label>
-                        <div class="input-group">
-                            <button type="button" class="minus-btn" data-target="income_boost">-</button>
-                            <input type="number" id="income_boost" name="income_boost" value="0" min="0" max="100" step="0.1" style="width: 5.5em; background: #36405a; color: #e6eaf3; border: 1px solid #2c3242;">
-                            <span style="margin: 0 0.2em;">%</span>
-                            <button type="button" class="plus-btn" data-target="income_boost">+</button>
+                    <div class="battle-block" style="margin-top: 1.0em; margin-left: 5px; min-height: 210px; max-height: 210px;width: 350px; min-width: 350px; max-width: 350px">
+                        <div class="block-label">Battle Simulation
+                            <span style="color: #4fa3ff; margin-left: 5px; cursor: help;" title="Run a battle simulation with the current configuration. The simulation will execute the specified number of battles (up to 1,000,000) to calculate win probability and resource gains.">ⓘ</span>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="n_fights">Number of fights:</label>
+                                <input type="number" id="n_fights" name="n_fights" value="10000" min="1" max="1000000" style="width: 5.5em; background: #36405a; color: #e6eaf3; border: 1px solid #2c3242;">
+                            </div>
+                            <div class="form-group" style="align-items: flex-start; justify-content: flex-start; margin-left: -30px;">
+                                <button id="simulateBtn" type="button">Simulate</button>
+                            </div>
                         </div>
                     </div>
-                    <div class="form-group">
-                        <label for="reputation">Reputation:</label>
-                        <div class="input-group">
-                            <button type="button" class="minus-btn" data-target="reputation">-</button>
-                            <input type="number" id="reputation" name="reputation" value="0" min="0" max="100" step="0.1" style="width: 5.5em; background: #36405a; color: #e6eaf3; border: 1px solid #2c3242;">
-                            <span style="margin: 0 0.2em;">%</span>
-                            <button type="button" class="plus-btn" data-target="reputation">+</button>
+                    <div class="optimizer-block" style="margin-top: 1.5em; margin-left: 5px; width: 600px; min-width: 600px; max-width: 600px; min-height: 210px;">
+                        <div class="block-label">Optimizer
+                            <span style="color: #4fa3ff; margin-left: 5px; cursor: help;" title="Find the optimal stat distribution for your current configuration. The optimizer will test various stat combinations using the specified number of simulations (up to 1,000,000). Higher values provide more accurate results but significantly increase computation time and may temporarily freeze the interface. Consider starting with a lower number and increasing it if needed.">ⓘ</span>
                         </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div style="display: flex; flex-direction: row; align-items: flex-start;">
-            <div style="position: relative; width: fit-content;">
-                <div style="position: absolute; left: 180px; top: -2.1em; z-index: 2;">
-                    <label style="font-size: 1.08em; display: flex; align-items: center; color: #e6eaf3; background: #23283a; padding: 0.1em 0.7em 0.1em 0.5em; border-radius: 5px; box-shadow: 0 2px 8px 0 rgba(0,0,0,0.04);">
-                        <input type="checkbox" id="modifyAllClones" style="margin-right: 0.5em;"> Modify all clones together
-                    </label>
-                </div>
-                <div id="cloneModifiersSection" class="clone-modifiers-section"></div>
-            </div>
-            <div style="display: flex; flex-direction: column; align-items: flex-start; margin-left: 7.5em;">
-                <div class="api-block" style="margin-top: 0; margin-left: 5px; min-height: 110px; max-height: 110px; width: 450px; min-width: 450px; max-width: 450px; background: #23283a; border-radius: 6px; border: 1px solid #2c3242; padding: 0.7em 1.2em 0.5em 1.2em; box-sizing: border-box;">
-                    <div class="block-label">Import data
-                        <span style="color: #4fa3ff; margin-left: 5px; cursor: help;" title="Import your player, mob and clone stats using your API key. This will automatically fill in all your current stats. Your API key is located in Settings">ⓘ</span>
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group" style="flex: 1;">
-                            <label for="api_key">API Key:</label>
-                            <input type="text" id="api_key" name="api_key" style="width: 150%; background: #36405a; color: #e6eaf3; border: 1px solid #2c3242; padding: 0.2em;">
+                        <div style="display: flex; align-items: center; margin-bottom: 1em;">
+                            <span style="margin-right: 10px;">Optimize against:</span>
+                            <label style="margin-right: 15px; display: flex; align-items: center;">
+                                <input type="radio" name="optimize_target" value="credits" checked style="margin-right: 5px;"> Credits
+                            </label>
+                            <label style="display: flex; align-items: center;">
+                                <input type="radio" name="optimize_target" value="exp" style="margin-right: 5px;"> Experience
+                            </label>
                         </div>
-                        <div class="form-group" style="align-items: flex-start; justify-content: flex-start; margin-left: 110px;">
-                            <button id="importBtn" type="button">Import</button>
+                        <div class="form-row" style="margin-bottom: 1em;">
+                            <div class="form-group">
+                                <label for="optimizer_htk">HTK:
+                                    <span style="color: #4fa3ff; margin-left: 5px; cursor: help;" title="Hits to kill: The number of hits needed to defeat the mob">ⓘ</span>
+                                </label>
+                                <div class="input-group">
+                                    <button type="button" class="minus-btn" data-target="optimizer_htk">-</button>
+                                    <input type="number" id="optimizer_htk" name="optimizer_htk" value="8" min="1" style="width: 5.5em; background: #36405a; color: #e6eaf3; border: 1px solid #2c3242;">
+                                    <button type="button" class="plus-btn" data-target="optimizer_htk">+</button>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="optimizer_htd">HTD:
+                                    <span style="color: #4fa3ff; margin-left: 5px; cursor: help;" title="Hits to die: The number of hits the mob needs to defeat your clones">ⓘ</span>
+                                </label>
+                                <div class="input-group">
+                                    <button type="button" class="minus-btn" data-target="optimizer_htd">-</button>
+                                    <input type="number" id="optimizer_htd" name="optimizer_htd" value="4" min="1" style="width: 5.5em; background: #36405a; color: #e6eaf3; border: 1px solid #2c3242;">
+                                    <button type="button" class="plus-btn" data-target="optimizer_htd">+</button>
+                                </div>
+                            </div>
                         </div>
-                    </div>
-                </div>
-                <div class="battle-block" style="margin-top: 0.0em; margin-left: 5px; min-height: 210px; max-height: 210px;width: 350px; min-width: 350px; max-width: 350px">
-                    <div class="block-label">Battle Simulation
-                        <span style="color: #4fa3ff; margin-left: 5px; cursor: help;" title="Run a battle simulation with the current configuration. The simulation will execute the specified number of battles (up to 1,000,000) to calculate win probability and resource gains.">ⓘ</span>
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="n_fights">Number of fights:</label>
-                            <input type="number" id="n_fights" name="n_fights" value="10000" min="1" max="1000000" style="width: 5.5em; background: #36405a; color: #e6eaf3; border: 1px solid #2c3242;">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="optimizer_n_fights">Number of fights:</label>
+                                <input type="number" id="optimizer_n_fights" name="optimizer_n_fights" value="5000" min="1" max="1000000" style="width: 5.5em; background: #36405a; color: #e6eaf3; border: 1px solid #2c3242;">
+                            </div>
+                            <div class="form-group" style="display: flex; flex-direction: row; align-items: center; margin-left: -250px;">
+                                <button id="optimizerBtn" type="button" style="margin-right: 10px;">Simple Optimize</button>
+                                <button id="longOptimizerBtn" type="button" style="margin-right: 10px;" title="Optimize by searching through multiple values of HTK and HTD. It is not advised to use more than 5000 fights">Long Optimize</button>
+                                <button id="importOptimizedBtn" type="button" style="display: none;">Import</button>
+                            </div>
                         </div>
-                        <div class="form-group" style="align-items: flex-start; justify-content: flex-start; margin-left: -30px;">
-                            <button id="simulateBtn" type="button">Simulate</button>
+                        <div id="optimizerProgress" style="height: 50px; margin: 1em 0;">
+                            <div style="width: 100%; background: #36405a; border-radius: 4px; height: 20px; overflow: hidden;">
+                                <div id="optimizerProgressBar" style="width: 0%; height: 100%; background: #4fa3ff; transition: width 0.3s ease;"></div>
+                            </div>
+                            <div id="optimizerProgressText" style="text-align: center; margin-top: 0.5em; font-size: 0.9em; color: #b0b6c6;">0%</div>
                         </div>
-                    </div>
-                </div>
-                <div class="optimizer-block" style="margin-top: 1.5em; margin-left: 5px; width: 500px; min-width: 500px; max-width: 500px; min-height: 210px;">
-                    <div class="block-label">Optimizer
-                        <span style="color: #4fa3ff; margin-left: 5px; cursor: help;" title="Find the optimal stat distribution for your current configuration. The optimizer will test various stat combinations using the specified number of simulations (up to 1,000,000). Higher values provide more accurate results but significantly increase computation time and may temporarily freeze the interface. Consider starting with a lower number and increasing it if needed.">ⓘ</span>
-                        <span style="color: #ff4f4f; margin-left: 10px; font-size: 0.85em; font-weight: normal;">Optimizer is currently unreliable for mob levels > 100. Use with caution.</span>
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="optimizer_n_fights">Number of fights:</label>
-                            <input type="number" id="optimizer_n_fights" name="optimizer_n_fights" value="5000" min="1" max="1000000" style="width: 5.5em; background: #36405a; color: #e6eaf3; border: 1px solid #2c3242;">
-                        </div>
-                        <div class="form-group" style="align-items: flex-start; justify-content: flex-start; margin-left: -130px; display: flex; flex-direction: row; align-items: center;">
-                            <button id="optimizerBtn" type="button">Optimize</button>
-                            <button id="importOptimizedBtn" type="button" style="display: none; margin-left: 20px;">Import</button>
-                        </div>
-                    </div>
-                    <div id="optimizerResult" style="display: flex; flex-direction: row; gap: 2em; margin-top: 1em;">
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.2em 1.2em; width: 140px; font-size: 1em;">
-                            <div><b>Power</b><br><span id="opt_power">-</span></div>
-                            <div><b>Precision</b><br><span id="opt_precision">-</span></div>
-                            <div><b>Evasion</b><br><span id="opt_evasion">-</span></div>
-                            <div><b>Hull</b><br><span id="opt_hull">-</span></div>
-                        </div>
-                        <div style="font-size: 0.98em;">
-                            <div><b>Win chance:</b> <span id="opt_win_chance">-</span></div>
-                            <div><b>Credits per hour:</b> <span id="opt_credits_hour">-</span></div>
-                            <div><b>Credits per day:</b> <span id="opt_credits_day">-</span></div>
-                            <div><b>Experience per hour:</b> <span id="opt_exp_hour">-</span></div>
-                            <div><b>Experience per day:</b> <span id="opt_exp_day">-</span></div>
+                        <div id="optimizerResult" style="display: flex; flex-direction: row; gap: 2em; margin-top: 1em;">
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.2em 1.2em; width: 140px; font-size: 1em;">
+                                <div><b>Power</b><br><span id="opt_power">-</span></div>
+                                <div><b>Precision</b><br><span id="opt_precision">-</span></div>
+                                <div><b>Evasion</b><br><span id="opt_evasion">-</span></div>
+                                <div><b>Hull</b><br><span id="opt_hull">-</span></div>
+                            </div>
+                            <div style="font-size: 0.98em;">
+                                <div><b>Win chance:</b> <span id="opt_win_chance">-</span></div>
+                                <div><b>Credits per hour:</b> <span id="opt_credits_hour">-</span></div>
+                                <div><b>Credits per day:</b> <span id="opt_credits_day">-</span></div>
+                                <div><b>Experience per hour:</b> <span id="opt_exp_hour">-</span></div>
+                                <div><b>Experience per day:</b> <span id="opt_exp_day">-</span></div>
+                            </div>
                         </div>
                     </div>
                 </div>
-                <div class="optimizer-block" style="margin-top: 1.0em; margin-left: 5px; width: 500px; min-width: 500px; max-width: 500px; min-height: 210px; position: relative;">
-                    <div style="position: absolute; top: 0.5em; right: 1em; text-align: left; font-size: 0.75em; color: #b0b6c6; line-height: 1.2;">
-                        For a more precise resources<br>
-                        calculator, see this <a href="https://docs.google.com/spreadsheets/d/1DCpkdBsHL_dqa_Fv13k3M1iKVuBCa4vXbfTjToQ64G8/edit?gid=1892479921#gid=1892479921" target="_blank" style="color: #4fa3ff; text-decoration: none;">Google Sheet</a>
-                    </div>
-                    <div class="block-label">Resources Calculator
-                        <span style="color: #4fa3ff; margin-left: 5px; cursor: help;" title="Calculate resource gathering rates and time to reach specific goals based on your current setup.
+            </div>
+        </form>
+    </div>
+
+    <div id="gathering-tab" class="tab-content">
+        <div class="form-section" style="display: flex; flex-direction: row; gap: 2em;">
+            <div class="optimizer-block" style="margin-top: 1.0em; margin-left: 5px; width: 500px; min-width: 500px; max-width: 500px; min-height: 210px; position: relative;">
+                <div style="position: absolute; top: 0.5em; right: 1em; text-align: left; font-size: 0.75em; color: #b0b6c6; line-height: 1.2;">
+                    For a more precise resources<br>
+                    calculator, see this <a href="https://docs.google.com/spreadsheets/d/1DCpkdBsHL_dqa_Fv13k3M1iKVuBCa4vXbfTjToQ64G8/edit?gid=1892479921#gid=1892479921" target="_blank" style="color: #4fa3ff; text-decoration: none;">Google Sheet</a>
+                </div>
+                <div class="block-label">Resources Calculator
+                    <span style="color: #4fa3ff; margin-left: 5px; cursor: help;" title="Calculate resource gathering rates and time to reach specific goals based on your current setup.
 • 'Resources' and 'Rare resources' per action refer to what you are currently gathering on your current planet
 • 'Additional dodge' and 'Additional rare resource drop' depend only on Laser and Sensor modifications
 • 'Avg. maneuverability' is the average Maneuverability across all your drones">ⓘ</span>
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="resources_per_action">Resources per action:</label>
-                            <div class="input-group">
-                                <button type="button" class="minus-btn" data-target="resources_per_action">-</button>
-                                <input type="number" id="resources_per_action" name="resources_per_action" value="0" min="0" style="width: 5.5em; background: #36405a; color: #e6eaf3; border: 1px solid #2c3242;">
-                                <button type="button" class="plus-btn" data-target="resources_per_action">+</button>
-                            </div>
-                        </div>
-                        <div class="form-group">
-                            <label for="rare_resources_per_action">Rare res per action:</label>
-                            <div class="input-group">
-                                <button type="button" class="minus-btn" data-target="rare_resources_per_action">-</button>
-                                <input type="number" id="rare_resources_per_action" name="rare_resources_per_action" value="0" min="0" style="width: 5.5em; background: #36405a; color: #e6eaf3; border: 1px solid #2c3242;">
-                                <button type="button" class="plus-btn" data-target="rare_resources_per_action">+</button>
-                            </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="resources_per_action">Resources per action:</label>
+                        <div class="input-group">
+                            <button type="button" class="minus-btn" data-target="resources_per_action">-</button>
+                            <input type="number" id="resources_per_action" name="resources_per_action" value="0" min="0" style="width: 5.5em; background: #36405a; color: #e6eaf3; border: 1px solid #2c3242;">
+                            <button type="button" class="plus-btn" data-target="resources_per_action">+</button>
                         </div>
                     </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="number_of_drones">Number of drones:</label>
-                            <div class="input-group">
-                                <button type="button" class="minus-btn" data-target="number_of_drones">-</button>
-                                <input type="number" id="number_of_drones" name="number_of_drones" value="1" min="1" style="width: 5.5em; background: #36405a; color: #e6eaf3; border: 1px solid #2c3242;">
-                                <button type="button" class="plus-btn" data-target="number_of_drones">+</button>
-                            </div>
-                        </div>
-                        <div class="form-group">
-                            <label for="dodge_percentage">Additional dodge:</label>
-                            <div class="input-group">
-                                <button type="button" class="minus-btn" data-target="dodge_percentage">-</button>
-                                <input type="number" id="dodge_percentage" name="dodge_percentage" value="0" min="0" max="100" step="0.1" style="width: 5.5em; background: #36405a; color: #e6eaf3; border: 1px solid #2c3242;">
-                                <span style="margin: 0 0.2em;">%</span>
-                                <button type="button" class="plus-btn" data-target="dodge_percentage">+</button>
-                            </div>
+                    <div class="form-group">
+                        <label for="rare_resources_per_action">Rare res per action:</label>
+                        <div class="input-group">
+                            <button type="button" class="minus-btn" data-target="rare_resources_per_action">-</button>
+                            <input type="number" id="rare_resources_per_action" name="rare_resources_per_action" value="0" min="0" style="width: 5.5em; background: #36405a; color: #e6eaf3; border: 1px solid #2c3242;">
+                            <button type="button" class="plus-btn" data-target="rare_resources_per_action">+</button>
                         </div>
                     </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="rare_drop_increase">Additional rare res drop:</label>
-                            <div class="input-group">
-                                <button type="button" class="minus-btn" data-target="rare_drop_increase">-</button>
-                                <input type="number" id="rare_drop_increase" name="rare_drop_increase" value="0" min="0" max="100" step="0.1" style="width: 5.5em; background: #36405a; color: #e6eaf3; border: 1px solid #2c3242;">
-                                <span style="margin: 0 0.2em;">%</span>
-                                <button type="button" class="plus-btn" data-target="rare_drop_increase">+</button>
-                            </div>
-                        </div>
-                        <div class="form-group">
-                            <label for="maneuverability">Avg. maneuverability:</label>
-                            <div class="input-group">
-                                <button type="button" class="minus-btn" data-target="maneuverability">-</button>
-                                <input type="number" id="maneuverability" name="maneuverability" value="0" min="0" max="100" step="0.1" style="width: 5.5em; background: #36405a; color: #e6eaf3; border: 1px solid #2c3242;">
-                                <span style="margin: 0 0.2em;">%</span>
-                                <button type="button" class="plus-btn" data-target="maneuverability">+</button>
-                            </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="number_of_drones">Number of drones:</label>
+                        <div class="input-group">
+                            <button type="button" class="minus-btn" data-target="number_of_drones">-</button>
+                            <input type="number" id="number_of_drones" name="number_of_drones" value="1" min="1" style="width: 5.5em; background: #36405a; color: #e6eaf3; border: 1px solid #2c3242;">
+                            <button type="button" class="plus-btn" data-target="number_of_drones">+</button>
                         </div>
                     </div>
-                    <div class="form-row">
-                        <div class="form-group" style="align-items: flex-start; justify-content: flex-start; margin-left: 0;">
-                            <button id="calculateResourcesBtn" type="button">Calculate</button>
+                    <div class="form-group">
+                        <label for="dodge_percentage">Additional dodge:</label>
+                        <div class="input-group">
+                            <button type="button" class="minus-btn" data-target="dodge_percentage">-</button>
+                            <input type="number" id="dodge_percentage" name="dodge_percentage" value="0" min="0" max="100" step="0.1" style="width: 5.5em; background: #36405a; color: #e6eaf3; border: 1px solid #2c3242;">
+                            <span style="margin: 0 0.2em;">%</span>
+                            <button type="button" class="plus-btn" data-target="dodge_percentage">+</button>
                         </div>
                     </div>
-                    <div id="resourcesResult" style="display: flex; flex-direction: row; gap: 2em; margin-top: 1em;">
-                        <div style="font-size: 0.98em;">
-                            <div><b>Resources per hour:</b> <span id="resources_per_hour">-</span></div>
-                            <div><b>Rare resources per hour:</b> <span id="rare_resources_per_hour">-</span></div>
-                            <div><b>Hours necessary to gather 32M resources:</b> <span id="hours_to_32m">-</span></div>
-                            <div><b>Hours necessary to gather 800k rare resources:</b> <span id="days_to_800k">-</span></div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="rare_drop_increase">Additional rare res drop:</label>
+                        <div class="input-group">
+                            <button type="button" class="minus-btn" data-target="rare_drop_increase">-</button>
+                            <input type="number" id="rare_drop_increase" name="rare_drop_increase" value="0" min="0" max="100" step="0.1" style="width: 5.5em; background: #36405a; color: #e6eaf3; border: 1px solid #2c3242;">
+                            <span style="margin: 0 0.2em;">%</span>
+                            <button type="button" class="plus-btn" data-target="rare_drop_increase">+</button>
                         </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="maneuverability">Avg. maneuverability:</label>
+                        <div class="input-group">
+                            <button type="button" class="minus-btn" data-target="maneuverability">-</button>
+                            <input type="number" id="maneuverability" name="maneuverability" value="0" min="0" max="100" step="0.1" style="width: 5.5em; background: #36405a; color: #e6eaf3; border: 1px solid #2c3242;">
+                            <span style="margin: 0 0.2em;">%</span>
+                            <button type="button" class="plus-btn" data-target="maneuverability">+</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group" style="align-items: flex-start; justify-content: flex-start; margin-left: 0;">
+                        <button id="calculateResourcesBtn" type="button">Calculate</button>
+                    </div>
+                </div>
+                <div id="resourcesResult" style="display: flex; flex-direction: row; gap: 2em; margin-top: 1em;">
+                    <div style="font-size: 0.98em;">
+                        <div><b>Resources per hour:</b> <span id="resources_per_hour">-</span></div>
+                        <div><b>Rare resources per hour:</b> <span id="rare_resources_per_hour">-</span></div>
+                        <div><b>Hours necessary to gather 32M resources:</b> <span id="hours_to_32m">-</span></div>
+                        <div><b>Hours necessary to gather 800k rare resources:</b> <span id="days_to_800k">-</span></div>
                     </div>
                 </div>
             </div>
         </div>
-    </form>
+    </div>
+
+    <div id="universe-map-tab" class="tab-content">
+        <div style="font-size: 1.5em; text-align: center; margin-top: 2em;">Work in progress</div>
+    </div>
+
+    <!-- Tab bar -->
+    <div class="tab-container">
+        <div class="tab active" data-tab="battling-tab">Battling</div>
+        <div class="tab" data-tab="gathering-tab">Gathering</div>
+        <div class="tab" data-tab="universe-map-tab">Universe Map</div>
+    </div>
+
     <div id="playerResult"></div>
-    <footer style="margin-top: -2.5em; font-size: 1em; color: #928e8e; text-align: left;">
+    <footer>
         <span>Proudly made by anfneub</span>
         <span style="margin-left: 2.5em;" id="lastUpdated"></span>
         <span style="margin-left: 2.5em;">Space Odyssey Version 1.0.16 2025-05-25</span>
         <span style="margin-left: 2.5em; cursor: pointer; color: #4fa3ff; text-decoration: underline;" id="changelogLink">Changelog</span>
     </footer>
+
+    <!-- Add tab switching script -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const tabs = document.querySelectorAll('.tab');
+            
+            // Function to switch tabs
+            function switchTab(tab) {
+                // Remove active class from all tabs and content
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                
+                // Add active class to clicked tab and corresponding content
+                tab.classList.add('active');
+                const tabId = tab.getAttribute('data-tab');
+                document.getElementById(tabId).classList.add('active');
+                
+                // Save active tab to localStorage
+                localStorage.setItem('activeTab', tabId);
+            }
+
+            // Add click handlers to all tabs
+            tabs.forEach(tab => {
+                tab.addEventListener('click', () => switchTab(tab));
+            });
+
+            // Restore active tab from localStorage
+            const savedTab = localStorage.getItem('activeTab');
+            if (savedTab) {
+                const tabToActivate = document.querySelector(`.tab[data-tab="${savedTab}"]`);
+                if (tabToActivate) {
+                    switchTab(tabToActivate);
+                }
+            }
+        });
+    </script>
     <script>
         // Set last updated date/time
         const lastUpdated = document.getElementById('lastUpdated');
         if (lastUpdated) {
             const now = new Date();
             const pad = n => n.toString().padStart(2, '0');
-            const dateStr = "2025-05-25";
-            const timeStr = "11:50";
+            const dateStr = "2025-05-26";
+            const timeStr = "09:17";
             lastUpdated.textContent = `Last updated: ${dateStr} ${timeStr}`;
         }
     </script>

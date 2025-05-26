@@ -16,7 +16,6 @@ class Mob {
             this.dmg = Math.floor(7.0 * 1.1 * this.lvl);
             this.pre = Math.floor(1.0 * 1.5 * this.lvl);
             this.eva = Math.floor(1.0 * 1.5 * this.lvl);
-            console.log(`lvl >= 100`)
         }
         
         if (this.lvl < 150) {this.hp = Math.floor(1300.0 * this.lvl);}
