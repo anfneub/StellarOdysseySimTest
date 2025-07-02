@@ -47,7 +47,7 @@
             display: block;
         }
         /* End tab styles */
-
+        
         .form-section > div:first-child { flex: none; width: 420px; min-width: 420px; }
         .form-row { display: flex; gap: 1em; margin-bottom: 1em; }
         .form-group { flex: 1; display: flex; flex-direction: column; min-width: 180px; color: #e6eaf3; font-size: 1.08em; }
@@ -289,6 +289,16 @@
             color: #e6eaf3;
             border: 1px solid #2c3242;
         }
+        .player-unallocated-label {
+            font-size: 0.95em;
+            color: #e6eaf3;
+            font-weight: 400;
+            margin-left: 6em;
+            margin-right: 0.5em;
+            margin-top: 0.2em;
+            margin-bottom: 0.2em;
+            /* Match .form-group label */
+        }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
     <script type="module">
@@ -298,7 +308,9 @@
         import { CloneModifiers, MobName } from './dataclasses.js';
         import { millify } from './utils.js';
         import { Optimizer } from './optimizer.js';
-
+        import { WorkerPool } from './workerpool.js';
+        import { PvPBattle } from './battle.js';
+        
         // Predefined test values for easy testing
         const DEFAULTS = {
             power: 0,
@@ -317,17 +329,20 @@
             mob_level: 1,
             n_fights: 1000,
             clone_modifiers: [
-                { crit: 0, critdmg: 0, dual: 0 }
+            { crit: 0, critdmg: 0, dual: 0 }
             ]
         };
-
+        
         document.addEventListener('DOMContentLoaded', () => {
             const form = document.getElementById('playerForm');
             const resultDiv = document.getElementById('playerResult');
             const submitBtn = document.getElementById('submitBtn');
             const cloneModifiersSection = document.getElementById('cloneModifiersSection');
             let cloneModifiers = [];
-
+            
+            // Declare totalStatPool for use after API import
+            let totalStatPool = null;
+            
             // Function to save all settings to localStorage
             function saveSettings() {
                 const settings = {
@@ -336,6 +351,7 @@
                     precision: form.precision.value,
                     evasion: form.evasion.value,
                     hull: form.hull.value,
+                    available: form.available?.value || 0,
                     weapon_dmg: form.weapon_dmg.value,
                     shield_def: form.shield_def.value,
                     n_clones: form.n_clones.value,
@@ -349,6 +365,7 @@
                     mob_level: form.mob_level.value,
                     // Squadron buffs
                     income_boost: form.income_boost?.value || 0,
+                    battle_boost: form.battle_boost?.value || 0,
                     reputation: form.reputation?.value || 0,
                     // Clone modifiers
                     clone_modifiers: cloneModifiers,
@@ -368,7 +385,7 @@
                 };
                 localStorage.setItem('stellarOdysseySettings', JSON.stringify(settings));
             }
-
+            
             // Load saved settings or use defaults
             const savedSettings = localStorage.getItem('stellarOdysseySettings');
             if (savedSettings) {
@@ -409,14 +426,14 @@
                 cloneModifiers = DEFAULTS.clone_modifiers.map(mod => ({...mod}));
                 renderCloneModifiers(parseInt(DEFAULTS.n_clones) || 1);
             }
-
+            
             // For selects and n_clones, trigger input event to update UI
             const nClonesInput = document.getElementById('n_clones');
             nClonesInput.addEventListener('input', () => {
                 let n = Math.min(Math.max(parseInt(nClonesInput.value) || 1, 1), 10);
                 nClonesInput.value = n;
                 if (cloneModifiers.length > n) {
-                    cloneModifiers = cloneModifiers.slice(0, n);re
+                    cloneModifiers = cloneModifiers.slice(0, n);
                 } else if (cloneModifiers.length < n) {
                     while (cloneModifiers.length < n) {
                         cloneModifiers.push({ crit: 0.0, critdmg: 0.0, dual: 0.0 });
@@ -425,7 +442,7 @@
                 renderCloneModifiers(n);
                 saveSettings();
             });
-
+            
             function renderCloneModifiers(n) {
                 // Always use cloneModifiers.length as the source of truth
                 cloneModifiersSection.innerHTML = '';
@@ -502,7 +519,7 @@
                     });
                 });
             }
-
+            
             // Handle plus/minus for player fields
             document.querySelectorAll('.minus-btn:not([data-clone])').forEach(btn => {
                 btn.addEventListener('click', () => {
@@ -517,13 +534,13 @@
                         step = 1;
                     } else if (['precision', 'hull', 'power', 'evasion'].includes(targetId)) {
                         step = 5;
-                    } else if (['dodge_percentage', 'rare_drop_increase', 'maneuverability', 'income_boost', 'reputation'].includes(targetId)) {
+                    } else if (['dodge_percentage', 'rare_drop_increase', 'maneuverability', 'income_boost', 'battle_boost', 'reputation'].includes(targetId)) {
                         step = 1;
                     }
                     
                     val = Math.max(min, val - step);
                     // Round to 1 decimal place for percentage fields
-                    if (['dodge_percentage', 'rare_drop_increase', 'maneuverability', 'income_boost', 'reputation'].includes(targetId)) {
+                    if (['dodge_percentage', 'rare_drop_increase', 'maneuverability', 'income_boost', 'battle_boost', 'reputation'].includes(targetId)) {
                         val = Math.round(val * 10) / 10;
                     }
                     input.value = val;
@@ -544,20 +561,20 @@
                         step = 1;
                     } else if (['precision', 'hull', 'power', 'evasion'].includes(targetId)) {
                         step = 5;
-                    } else if (['dodge_percentage', 'rare_drop_increase', 'maneuverability', 'income_boost', 'reputation'].includes(targetId)) {
+                    } else if (['dodge_percentage', 'rare_drop_increase', 'maneuverability', 'income_boost', 'battle_boost', 'reputation'].includes(targetId)) {
                         step = 1;
                     }
                     
                     val = Math.min(max, val + step);
                     // Round to 1 decimal place for percentage fields
-                    if (['dodge_percentage', 'rare_drop_increase', 'maneuverability', 'income_boost', 'reputation'].includes(targetId)) {
+                    if (['dodge_percentage', 'rare_drop_increase', 'maneuverability', 'income_boost', 'battle_boost', 'reputation'].includes(targetId)) {
                         val = Math.round(val * 10) / 10;
                     }
                     input.value = val;
                     input.dispatchEvent(new Event('input'));
                 });
             });
-
+            
             // Simulate button logic
             const simulateBtn = document.getElementById('simulateBtn');
             const battleResultDiv = document.createElement('div');
@@ -569,6 +586,7 @@
                 const precision = parseInt(form.precision.value) || 0;
                 const evasion = parseInt(form.evasion.value) || 0;
                 const hull = parseInt(form.hull.value) || 0;
+                const available = parseInt(form.available.value) || 0;
                 const weapon_dmg = parseInt(form.weapon_dmg.value) || 0;
                 const shield_def = parseInt(form.shield_def.value) || 0;
                 const n_clones = parseInt(form.n_clones.value) || 1;
@@ -577,23 +595,23 @@
                 const shield_ele1 = form.shield_ele1.value || null;
                 const shield_ele2 = form.shield_ele2.value || null;
                 const vip_status = form.vip_status.checked;
-
+                
                 // Gather clone modifiers
                 const list_modifiers = cloneModifiers.map(mod =>
-                    new CloneModifiers(
-                        (parseFloat(mod.crit) || 0) / 100,
-                        (parseFloat(mod.critdmg) || 0) / 100,
-                        (parseFloat(mod.dual) || 0) / 100
-                    )
+                new CloneModifiers(
+                (parseFloat(mod.crit) || 0) / 100,
+                (parseFloat(mod.critdmg) || 0) / 100,
+                (parseFloat(mod.dual) || 0) / 100
+                )
                 );
-
+                
                 // Gather mob fields
                 const mob_name = form.mob_name.value;
                 const mob_level = parseInt(form.mob_level.value) || 1;
                 // MobName enum is uppercase keys
                 let mob_enum_key = Object.keys(MobName).find(key => MobName[key] === mob_name);
                 const mob = new Mob(MobName[mob_enum_key], mob_level);
-
+                
                 // Number of fights
                 let n_fights = parseInt(form.n_fights.value) || 1000;
                 if (n_fights < 1) n_fights = 1;
@@ -601,45 +619,74 @@
                     n_fights = 1000000;
                     form.n_fights.value = 1000000;
                 }
-
+                
                 // Create player
+                const battle_boost = (parseInt(form.battle_boost?.value || 0) * 0.05);
                 const player = new Player({
-                    power, precision, evasion, hull, weapon_dmg, shield_def, n_clones, vip_status,
-                    weapon_ele1, weapon_ele2, shield_ele1, shield_ele2
+                    power, precision, evasion, hull, available: parseInt(document.getElementById('available').value) || 0, weapon_dmg, shield_def, n_clones, vip_status,
+                    weapon_ele1, weapon_ele2, shield_ele1, shield_ele2, battle_boost
                 });
-
+                
                 // Create and run battle
                 const battle = new Battle({ player, mob, list_modifiers, verbose: false });
                 const win_chance = battle.repeat_fights(n_fights);
-
+                
                 // Get income boost and reputation values
-                const income_boost = parseFloat(form.income_boost?.value || 0) / 100;
-                const reputation = parseFloat(form.reputation?.value || 0) / 100;
-
+                const income_boost = (parseInt(form.income_boost?.value || 0) * 0.02);
+                const reputation = (parseFloat(form.reputation?.value || 0) / 100);
+                
                 // Print result
                 const creditsPerHour = battle.get_revenue('hourly', win_chance, income_boost, reputation);
                 const creditsPerDay = battle.get_revenue('daily', win_chance, income_boost, reputation);
                 const expPerHour = battle.get_experience('hourly', win_chance, reputation);
                 const expPerDay = battle.get_experience('daily', win_chance, reputation);
                 battleResultDiv.innerHTML = `<b>Win chance:</b> ${(win_chance * 100).toFixed(2)}%<br>` +
-                    `<b>Credits per hour:</b> ${millify(creditsPerHour)}/h<br>` +
-                    `<b>Credits per day:</b> ${millify(creditsPerDay)}/day<br>` +
-                    `<b>Experience per hour:</b> ${millify(expPerHour)}/h<br>` +
-                    `<b>Experience per day:</b> ${millify(expPerDay)}/day`;
+                `<b>Credits per hour:</b> ${millify(creditsPerHour)}/h<br>` +
+                `<b>Credits per day:</b> ${millify(creditsPerDay)}/day<br>` +
+                `<b>Experience per hour:</b> ${millify(expPerHour)}/h<br>` +
+                `<b>Experience per day:</b> ${millify(expPerDay)}/day`;
             });
-
+            
             // Optimizer logic
             const optimizerBtn = document.getElementById('optimizerBtn');
             const longOptimizerBtn = document.getElementById('longOptimizerBtn');
             const optimizerResultDiv = document.getElementById('optimizerResult');
             
             async function runOptimizer(isLongOptimize = false) {
+
+                // Loads Optimized worker amount from localStorage.
+                function getRecommendedWorkerCount() {
+                    const defaultCores = navigator.hardwareConcurrency || 4;
+                    const defaultSafe = Math.max(1, Math.floor(defaultCores / 2));
+                    const saved = localStorage.getItem("optimizer_maxWorkers");
+                    return saved ? parseInt(saved, 10) : defaultSafe;
+                }
+
+                let blockedFrames = 0;
+                let blockThreshold = 200;
+
+                // CPU cost and blocking monitor.
+                function monitorBlocking() {
+                    let lastTime = performance.now();
+                    const check = () => {
+                        const now = performance.now();
+                        const delay = now - lastTime;
+                        if (delay > blockThreshold) {
+                            blockedFrames++;
+                        }
+                        lastTime = now;
+                        requestAnimationFrame(check);
+                    };
+                    requestAnimationFrame(check);
+                }
+                monitorBlocking();
+
                 // Reset progress bar
                 const progressBar = document.getElementById('optimizerProgressBar');
                 const progressText = document.getElementById('optimizerProgressText');
                 progressBar.style.width = '0%';
                 progressText.textContent = '0%';
-
+                
                 // Gather player fields
                 const power = parseInt(form.power.value) || 0;
                 const precision = parseInt(form.precision.value) || 0;
@@ -653,80 +700,126 @@
                 const shield_ele1 = form.shield_ele1.value || null;
                 const shield_ele2 = form.shield_ele2.value || null;
                 const vip_status = form.vip_status.checked;
-
+                
                 // Gather clone modifiers
                 const list_modifiers = cloneModifiers.map(mod =>
-                    new CloneModifiers(
-                        (parseFloat(mod.crit) || 0) / 100,
-                        (parseFloat(mod.critdmg) || 0) / 100,
-                        (parseFloat(mod.dual) || 0) / 100
-                    )
+                new CloneModifiers(
+                (parseFloat(mod.crit) || 0) / 100,
+                (parseFloat(mod.critdmg) || 0) / 100,
+                (parseFloat(mod.dual) || 0) / 100
+                )
                 );
-
+                
                 // Gather mob fields
                 const mob_name = form.mob_name.value;
                 const mob_level = parseInt(form.mob_level.value) || 1;
                 let mob_enum_key = Object.keys(MobName).find(key => MobName[key] === mob_name);
                 const mob = new Mob(MobName[mob_enum_key], mob_level);
-
+                
                 // Create player
+                const battle_boost = (parseInt(form.battle_boost?.value || 0) * 0.05);
                 const player = new Player({
-                    power, precision, evasion, hull, weapon_dmg, shield_def, n_clones, vip_status,
-                    weapon_ele1, weapon_ele2, shield_ele1, shield_ele2
+                    power, precision, evasion, hull, available: parseInt(document.getElementById('available').value) || 0, weapon_dmg, shield_def, n_clones, vip_status,
+                    weapon_ele1, weapon_ele2, shield_ele1, shield_ele2, battle_boost
                 });
-
+                
                 const optimizerFightsInput = document.getElementById('optimizer_n_fights');
                 const n_fights = parseInt(optimizerFightsInput.value);
-                const reputation = parseFloat(form.reputation?.value || 0) / 100;
+                const reputation = (parseFloat(form.reputation?.value || 0) / 100);
                 const optimizer = new Optimizer(player, mob, list_modifiers, n_fights, reputation);
                 let result;
                 
                 if (isLongOptimize) {
+                    const usedThreads = getRecommendedWorkerCount();
+                    const pool = new WorkerPool(usedThreads);
                     const target = document.querySelector('input[name="optimize_target"]:checked').value;
-                    const range_htk = Array.from({length: 7}, (_, i) => i + 4); // range(4,11)
-                    const range_htd = Array.from({length: 4}, (_, i) => i + 3); // range(3,7)
-                    const totalIterations = range_htk.length * range_htd.length;
-                    let currentIteration = 0;
-
-                    let best_build = [0, 0, 0, 0];
-                    let best_res = 0;
-                    let best_htk = 0;
-                    let best_htd = 0;
-                    let best_win_chance = 0;
-
+                    // Utility function to create a range [start, end] 
+                    function range(start, end) {
+                        return Array.from({length: end - start + 1}, (_, i) => i + start);
+                    }
+                    const range_htk = range(3, 16);
+                    const range_htd = range(2, 8);
+                    const totalTasks = range_htk.length * range_htd.length;
+                    let completedTasks = 0;
+                    
+                    const optimizer = new Optimizer(player, mob, list_modifiers, n_fights, reputation);
+                    const optimizerData = optimizer.serialize();
+                    
+                    const tasks = [];
                     for (const htk of range_htk) {
                         for (const htd of range_htd) {
-                            const [build, res, win_chance] = optimizer.findBestBuild(htd, htk, target);
-                            if (res > best_res) {
-                                best_res = res;
-                                best_build = build;
-                                best_htk = htk;
-                                best_htd = htd;
-                                best_win_chance = win_chance;
-                            }
-
-                            // Update progress
-                            currentIteration++;
-                            const progress = (currentIteration / totalIterations) * 100;
-                            progressBar.style.width = `${progress}%`;
-                            progressText.textContent = `${Math.round(progress)}%`;
-                            
-                            // Allow UI to update
-                            await new Promise(resolve => setTimeout(resolve, 0));
+                            tasks.push({
+                                optimizerData,
+                                target,
+                                htd,
+                                htk
+                            });
                         }
                     }
+                    
+                    //Update progress with finished tasks count.
+                    const updateProgress = () => {
+                        completedTasks++;
+                        const progress = (completedTasks / totalTasks) * 100;
+                        progressBar.style.width = `${progress}%`;
+                        progressText.textContent = `${Math.round(progress)}%`;
+                    };
+                    
+                    try {
+                        const results = await Promise.all(tasks.map(task => {
+                            return pool.runTask(task)
+                            .then(result => {
+                                updateProgress();
+                                return result;
+                            });
+                        }));
+                        
+                        let bestResult = results[0];
+                        for (const resultone of results) {
+                            if (resultone.res > bestResult.res) {
+                                bestResult = resultone;
+                            }
+                        }
+                        
+                        //bestResult construct from optimizer.js
+                        let {
+                            build: best_build,
+                            res: best_res,
+                            win_chance: best_win_chance,
+                            htd: best_htd,
+                            htk: best_htk
+                        } = bestResult;
+                        
+                        result = { bestStats: best_build, winChance: best_win_chance };
+                        
+                        document.getElementById('optimizer_htk').value = best_htk;
+                        document.getElementById('optimizer_htd').value = best_htd;
+                        
+                        const settings = JSON.parse(localStorage.getItem('stellarOdysseySettings') || '{}');
+                        settings.optimizer_htk = best_htk;
+                        settings.optimizer_htd = best_htd;
+                        localStorage.setItem('stellarOdysseySettings', JSON.stringify(settings));
+                    } catch (error) {
+                        console.error('Optimization error:', error);
+                    } finally {
+                        pool.terminate();
+                        function evaluateAndSaveThreadSetting(usedThreads) {
+                            console.log(`Blocked frames: ${blockedFrames}`);
+                            const bad = blockedFrames > 5;
+                            const good = blockedFrames < 2;
 
-                    result = { bestStats: best_build, winChance: best_win_chance };
-                    
-                    // Update HTK and HTD fields with the optimal values
-                    document.getElementById('optimizer_htk').value = best_htk;
-                    document.getElementById('optimizer_htd').value = best_htd;
-                    
-                    // Save the new values to localStorage
-                    const settings = JSON.parse(localStorage.getItem('stellarOdysseySettings') || '{}');
-                    settings.optimizer_htk = best_htk;
-                    settings.optimizer_htd = best_htd;
-                    localStorage.setItem('stellarOdysseySettings', JSON.stringify(settings));
+                            if (bad && usedThreads > 1) {
+                                const next = usedThreads - 1;
+                                console.warn(`⚠ Blocking Detected: Try using ${next} threads next time.`);
+                                localStorage.setItem('optimizer_maxWorkers', next);
+                            } else if (good && usedThreads < (navigator.hardwareConcurrency || 4)) {
+                                const next = usedThreads + 1;
+                                console.info(`✅ Flowing: Try using ${next} threads next time.`);
+                                localStorage.setItem('optimizer_maxWorkers', next);
+                            }
+                        }
+                        evaluateAndSaveThreadSetting(usedThreads);
+                    }
                 } else {
                     const target = document.querySelector('input[name="optimize_target"]:checked').value;
                     const htk = parseInt(document.getElementById('optimizer_htk').value);
@@ -749,19 +842,21 @@
                     };
                     
                     requestAnimationFrame(animateProgress);
-
+                    
                     const [bestBuild, bestRes, bestWinChance] = optimizer.findBestBuild(htd, htk, target, false);
                     result = { bestStats: bestBuild, winChance: bestWinChance };
                 }
-
+                
                 // Update the results display
                 if (result && result.bestStats && result.winChance !== undefined) {
+                    const battle_boost = (parseInt(form.battle_boost?.value || 0) * 0.05);
                     const [power, precision, evasion, hull] = result.bestStats;
                     const tmp_player = new Player({
                         power,
                         precision,
                         evasion,
                         hull,
+                        available: parseInt(document.getElementById('available').value) || 0,
                         weapon_dmg: player.weapon_dmg,
                         shield_def: player.shield_def,
                         n_clones: player.n_clones,
@@ -769,14 +864,15 @@
                         weapon_ele1: player.weapon_ele1,
                         weapon_ele2: player.weapon_ele2,
                         shield_ele1: player.shield_ele1,
-                        shield_ele2: player.shield_ele2
+                        shield_ele2: player.shield_ele2,
+                        battle_boost: battle_boost
                     });
                     const battle = new Battle({ player: tmp_player, mob: mob, list_modifiers: list_modifiers });
                     
                     // Get income boost and reputation values
-                    const income_boost = parseFloat(form.income_boost?.value || 0) / 100;
-                    const reputation = parseFloat(form.reputation?.value || 0) / 100;
-
+                    const income_boost = (parseInt(form.income_boost?.value || 0) * 0.02);
+                    const reputation = (parseFloat(form.reputation?.value || 0) / 100);
+                    
                     const creditsPerHour = battle.get_revenue('hourly', result.winChance, income_boost, reputation);
                     const creditsPerDay = battle.get_revenue('daily', result.winChance, income_boost, reputation);
                     const expPerHour = battle.get_experience('hourly', result.winChance, reputation);
@@ -794,7 +890,7 @@
                     document.getElementById('opt_credits_day').textContent = `${millify(creditsPerDay)}/day`;
                     document.getElementById('opt_exp_hour').textContent = `${millify(expPerHour)}/h`;
                     document.getElementById('opt_exp_day').textContent = `${millify(expPerDay)}/day`;
-
+                    
                     // Add Import button next to Optimize
                     let importBtn = document.getElementById('importOptimizedBtn');
                     if (!importBtn) {
@@ -810,6 +906,7 @@
                         form.precision.value = precision;
                         form.evasion.value = evasion;
                         form.hull.value = hull;
+                        updateUnallocatedStatsDisplay();
                     };
                 } else {
                     // Reset all values to "-"
@@ -827,10 +924,10 @@
                     if (importBtn) importBtn.style.display = 'none';
                 }
             }
-
+            
             optimizerBtn.addEventListener('click', () => runOptimizer(false));
             longOptimizerBtn.addEventListener('click', () => runOptimizer(true));
-
+            
             // Add event listeners to save settings when values change
             form.querySelectorAll('input, select').forEach(element => {
                 element.addEventListener('change', saveSettings);
@@ -838,12 +935,12 @@
                     element.addEventListener('input', saveSettings);
                 }
             });
-
+            
             // For number inputs, also save on input event for immediate feedback
             form.querySelectorAll('input[type="number"]').forEach(element => {
                 element.addEventListener('input', saveSettings);
             });
-
+            
             // Add event listeners for all minus/plus buttons
             document.querySelectorAll('.minus-btn, .plus-btn').forEach(btn => {
                 btn.addEventListener('click', () => {
@@ -857,7 +954,7 @@
                     }
                 });
             });
-
+            
             // Modify the clone modifiers event listeners to save settings
             function addCloneModifierListeners() {
                 cloneModifiersSection.querySelectorAll('.minus-btn, .plus-btn, .clone-input').forEach(element => {
@@ -867,7 +964,7 @@
                     }
                 });
             }
-
+            
             // Update the renderCloneModifiers function to add listeners
             const originalRenderCloneModifiers = renderCloneModifiers;
             renderCloneModifiers = function(n) {
@@ -884,15 +981,15 @@
                 try {
                     const response = await axios({
                         method: 'get',
-                        url: `https://api.stellarodyssey.app/api/public/user?apikey=${apiKey}`,
+                        url: 'https://api.stellarodyssey.app/api/public/user',
                         headers: {
-                            'Accept': 'application/json'
+                            'Accept': 'application/json',
+                            'sodyssey-api-key': apiKey
                         },
                         timeout: 5000
                     });
                     return response.data;
                 } catch (error) {
-
                     let errorMessage = 'Failed to fetch user data. ';
                     
                     if (error.response) {
@@ -918,7 +1015,7 @@
                     throw new Error(errorMessage);
                 }
             }
-
+            
             function updateFormWithUserData(userData) {
                 const data = userData.data;
                 
@@ -928,8 +1025,19 @@
                     form.precision.value = data.stats.precision || 0;
                     form.evasion.value = data.stats.evasion || 0;
                     form.hull.value = data.stats.hull || 0;
+                    document.getElementById('available').value = data.stats.available || 0;
+                    
+                    // Set the total stat pool
+                    totalStatPool =
+                    (parseInt(form.power.value) || 0) +
+                    (parseInt(form.precision.value) || 0) +
+                    (parseInt(form.evasion.value) || 0) +
+                    (parseInt(form.hull.value) || 0) +
+                    (parseInt(document.getElementById('available').value) || 0);
+                    
+                    updateUnallocatedStatsDisplay()
                 }
-
+                
                 // Update ship data
                 if (data.ship) {
                     if (data.ship.weapon) {
@@ -946,7 +1054,7 @@
                             form.weapon_ele2.value = '';
                         }
                     }
-
+                    
                     if (data.ship.shield) {
                         form.shield_def.value = data.ship.shield.value || 0;
                         if (data.ship.shield.bonuses && data.ship.shield.bonuses.length > 0) {
@@ -962,10 +1070,10 @@
                         }
                     }
                 }
-
+                
                 // Update VIP status
                 form.vip_status.checked = data.premium || false;
-
+                
                 // Update number of clones and clone modifiers
                 if (data.clones && data.clones.length > 0) {
                     form.n_clones.value = data.clones.length;
@@ -975,7 +1083,7 @@
                         dual: clone.dual_shot || 0
                     }));
                 }
-
+                
                 // Update current mob and level
                 if (data.actions) {
                     if (data.actions.currentNpc) {
@@ -985,21 +1093,28 @@
                         form.mob_level.value = data.actions.currentNpcLevel;
                     }
                 }
-
+                
+                // Handle spacestation battleboost
+                if (data.spacestation && data.spacestation.battling_boost) {
+                    form.battle_boost.value = data.spacestation.battling_boost;
+                } else {
+                    form.battle_boost.value = 0;
+                }
+                
                 // Handle spacestation incomeboost
                 if (data.spacestation && data.spacestation.incomeboost) {
-                    form.income_boost.value = data.spacestation.incomeboost * 2.0;
+                    form.income_boost.value = data.spacestation.incomeboost;
                 } else {
                     form.income_boost.value = 0;
                 }
-
+                
                 // Handle reputation
                 if (data.reputation !== null && data.reputation !== undefined) {
-                    form.reputation.value = (data.reputation * 0.2).toFixed(1);
+                    form.reputation.value = data.reputation;
                 } else {
                     form.reputation.value = 0;
                 }
-
+                
                 // Render clone modifiers with the new data
                 renderCloneModifiers(parseInt(form.n_clones.value) || 1);
                 
@@ -1008,18 +1123,18 @@
                 
                 saveSettings();
             }
-
+            
             importBtn.addEventListener('click', async () => {
                 const apiKey = apiKeyInput.value.trim();
                 if (!apiKey) {
                     alert('Please enter your API key');
                     return;
                 }
-
+                
                 try {
                     importBtn.disabled = true;
                     importBtn.textContent = 'Importing...';
-
+                    
                     const userData = await fetchUserData(apiKey);
                     updateFormWithUserData(userData);
                     
@@ -1032,19 +1147,158 @@
                     importBtn.textContent = 'Import';
                 }
             });
-   
+            
+            // --- Unallocated stats logic ---
+            function updateUnallocatedStatsDisplay() {
+                const power = parseInt(form.power.value) || 0;
+                const precision =  parseInt(form.precision.value) || 0;
+                const evasion =  parseInt(form.evasion.value) || 0;
+                const hull = parseInt(form.hull.value) || 0;
+                if (totalStatPool === null) {
+                    totalStatPool =
+                    (parseInt(form.power.value) || 0) +
+                    (parseInt(form.precision.value) || 0) +
+                    (parseInt(form.evasion.value) || 0) +
+                    (parseInt(form.hull.value) || 0);
+                    document.getElementById('unallocatedStatsDisplay').textContent = `Unallocated stats: 0`;
+                }
+                else {
+                    const unallocated = totalStatPool - (power + precision + evasion + hull)
+                    document.getElementById('unallocatedStatsDisplay').textContent = `Unallocated stats: ${unallocated}`;
+                }
+            }
+            
+            ['power','precision','evasion','hull'].forEach(stat => {
+                const input = document.getElementById(stat);
+                input.addEventListener('input', () => {
+                    updateUnallocatedStatsDisplay();
+                });
+            });
+            
+            // On page load, initialize lastStats and display
+            updateUnallocatedStatsDisplay();
+            // --- End unallocated stats logic ---
+            
+            // PvP Tab logic
+            const pvpFightBtn = document.getElementById('pvpFightBtn');
+            const pvpBattleOutput = document.getElementById('pvpBattleOutput');
+            const attackingSquadInput = document.getElementById('attackingSquadInput');
+            const defendingSquadInput = document.getElementById('defendingSquadInput');
+            const pvpVerbose = document.getElementById('pvpVerbose');
+
+            // Restore PvP tab values from localStorage
+            if (attackingSquadInput && localStorage.getItem('pvpAttackingSquad')) {
+                attackingSquadInput.value = localStorage.getItem('pvpAttackingSquad');
+            }
+            if (defendingSquadInput && localStorage.getItem('pvpDefendingSquad')) {
+                defendingSquadInput.value = localStorage.getItem('pvpDefendingSquad');
+            }
+            if (pvpVerbose && localStorage.getItem('pvpVerboseChecked')) {
+                pvpVerbose.checked = localStorage.getItem('pvpVerboseChecked') === 'true';
+            }
+
+            // Save PvP tab values to localStorage on change/input
+            if (attackingSquadInput) {
+                attackingSquadInput.addEventListener('input', () => {
+                    localStorage.setItem('pvpAttackingSquad', attackingSquadInput.value);
+                });
+            }
+            if (defendingSquadInput) {
+                defendingSquadInput.addEventListener('input', () => {
+                    localStorage.setItem('pvpDefendingSquad', defendingSquadInput.value);
+                });
+            }
+            if (pvpVerbose) {
+                pvpVerbose.addEventListener('change', () => {
+                    localStorage.setItem('pvpVerboseChecked', pvpVerbose.checked);
+                });
+            }
+
+            if (pvpFightBtn) {
+                pvpFightBtn.addEventListener('click', () => {
+                    const attackersText = attackingSquadInput.value;
+                    const defendersText = defendingSquadInput.value;
+                    const nFightsInput = document.getElementById('pvpNFights');
+                    let nFights = parseInt(nFightsInput?.value) || 1;
+                    if (nFights < 1) nFights = 1;
+                    if (nFights > 1000000) nFights = 1000000;
+                    const verbose = (nFights === 1) && pvpVerbose.checked;
+                    let attackersJson, defendersJson;
+                    pvpBattleOutput.value = '';
+                    try {
+                        attackersJson = JSON.parse(attackersText);
+                    } catch (e) {
+                        pvpBattleOutput.value = 'Invalid JSON for Attacking squad: ' + e.message;
+                        return;
+                    }
+                    try {
+                        defendersJson = JSON.parse(defendersText);
+                    } catch (e) {
+                        pvpBattleOutput.value = 'Invalid JSON for Defending squad: ' + e.message;
+                        return;
+                    }
+                    if (nFights === 1) {
+                        let log = '';
+                        // Patch PvPBattle to allow log collection
+                        const oldLog = console.log;
+                        if (verbose) {
+                            console.log = (...args) => {
+                                log += args.join(' ') + '\n';
+                            };
+                        }
+                        try {
+                            const battle = PvPBattle.fromJSON(attackersJson, defendersJson, verbose);
+                            const result = battle.fight();
+                            if (verbose) {
+                                log += '\n';
+                            }
+                            log += result;
+                        } catch (e) {
+                            log += 'Error during battle: ' + e.message;
+                        }
+                        if (verbose) {
+                            console.log = oldLog;
+                        }
+                        pvpBattleOutput.value = log;
+                    } else {
+                        // Run nFights battles, count results
+                        let attackersWins = 0, defendersWins = 0, draws = 0;
+                        for (let i = 0; i < nFights; i++) {
+                            try {
+                                const battle = PvPBattle.fromJSON(attackersJson, defendersJson, false);
+                                const result = battle.fight();
+                                if (result.startsWith('Attackers')) attackersWins++;
+                                else if (result.startsWith('Defenders')) defendersWins++;
+                                else draws++;
+                            } catch (e) {
+                                draws++;
+                            }
+                        }
+                        pvpBattleOutput.value =
+                            `Results after ${nFights} fights:\n` +
+                            `Attackers won: ${attackersWins} (${((attackersWins/nFights)*100).toFixed(2)}%)\n` +
+                            `Defenders won: ${defendersWins} (${((defendersWins/nFights)*100).toFixed(2)}%)\n` +
+                            `Draws: ${draws} (${((draws/nFights)*100).toFixed(2)}%)`;
+                    }
+                });
+            }
         });
+        
     </script>
 </head>
 <body>
-    <div style="font-size: 1.7em; font-weight: 600; margin-bottom: 1.2em; letter-spacing: 0.01em;">Stellar Odyssey Simulator and Optimizer</div>
-    
+    <div style="display: flex; align-items: center; gap: 1em; margin-bottom: 2.2em;">
+        <div style="font-size: 1.7em; font-weight: 600; letter-spacing: 0.01em;">Stellar Odyssey Simulator and Optimizer</div>
+    </div>
     <!-- Tab content sections -->
     <div id="battling-tab" class="tab-content active">
         <form id="playerForm" class="form-section" autocomplete="off" style="display: flex; flex-direction: row; gap: 2em;">
             <div style="flex: 3;">
                 <div class="player-block" style="width: 420px; min-width: 420px; max-width: 420px;">
-                    <div class="block-label">Player</div>
+                    <div class="block-label" style="display: flex; align-items: center; justify-content: flex-start;">
+                        <span>Player</span>
+                        <span id="unallocatedStatsDisplay" class="player-unallocated-label">Unallocated stats: 0</span>
+                    </div>
                     <div class="form-row">
                         <div class="form-group">
                             <label for="power">Power:</label>
@@ -1081,9 +1335,10 @@
                             </div>
                         </div>
                     </div>
+                    <input type="hidden" id="available" name="available" value="0">
                     <div class="form-row">
                         <div class="form-group">
-                            <label for="weapon_dmg">Weapon Damage:</label>
+                            <label for="weapon_dmg">Weapon damage:</label>
                             <div class="input-group">
                                 <button type="button" class="minus-btn" data-target="weapon_dmg">-</button>
                                 <input type="number" id="weapon_dmg" name="weapon_dmg" value="0" min="0">
@@ -1180,7 +1435,7 @@
                                 <option value="Toxoids">Toxoids</option>
                                 <option value="Scorchers">Scorchers</option>
                                 <option value="Glacials">Glacials</option>
-                                <option value="Specters">Specters</option>
+                                <option value="Spectres">Spectres</option>
                                 <option value="Miners">Miners</option>
                             </select>
                         </div>
@@ -1198,20 +1453,28 @@
                     <div class="block-label">Squadron Buffs</div>
                     <div class="form-row">
                         <div class="form-group">
-                            <label for="income_boost">Space station:</label>
+                            <label for="battle_boost">Battle Boost Level:</label>
+                            <div class="input-group">
+                                <button type="button" class="minus-btn" data-target="battle_boost">-</button>
+                                <input type="number" id="battle_boost" name="battle_boost" value="0" min="0" style="width: 5.5em; background: #36405a; color: #e6eaf3; border: 1px solid #2c3242;">
+                                <button type="button" class="plus-btn" data-target="battle_boost">+</button>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="income_boost">Income Boost Level:</label>
                             <div class="input-group">
                                 <button type="button" class="minus-btn" data-target="income_boost">-</button>
-                                <input type="number" id="income_boost" name="income_boost" value="0" min="0" max="100" step="0.1" style="width: 5.5em; background: #36405a; color: #e6eaf3; border: 1px solid #2c3242;">
-                                <span style="margin: 0 0.2em;">%</span>
+                                <input type="number" id="income_boost" name="income_boost" value="0" min="0" style="width: 5.5em; background: #36405a; color: #e6eaf3; border: 1px solid #2c3242;">
                                 <button type="button" class="plus-btn" data-target="income_boost">+</button>
                             </div>
                         </div>
+                    </div>
+                    <div class="form-row">
                         <div class="form-group">
                             <label for="reputation">Reputation:</label>
                             <div class="input-group">
                                 <button type="button" class="minus-btn" data-target="reputation">-</button>
-                                <input type="number" id="reputation" name="reputation" value="0" min="0" max="100" step="0.1" style="width: 5.5em; background: #36405a; color: #e6eaf3; border: 1px solid #2c3242;">
-                                <span style="margin: 0 0.2em;">%</span>
+                                <input type="number" id="reputation" name="reputation" value="0" min="0" style="width: 5.5em; background: #36405a; color: #e6eaf3; border: 1px solid #2c3242;">%
                                 <button type="button" class="plus-btn" data-target="reputation">+</button>
                             </div>
                         </div>
@@ -1328,7 +1591,7 @@
             </div>
         </form>
     </div>
-
+    
     <div id="gathering-tab" class="tab-content">
         <div class="form-section" style="display: flex; flex-direction: row; gap: 2em;">
             <div class="optimizer-block" style="margin-top: 1.0em; margin-left: 5px; width: 500px; min-width: 500px; max-width: 500px; min-height: 210px; position: relative;">
@@ -1338,9 +1601,9 @@
                 </div>
                 <div class="block-label">Resources Calculator
                     <span style="color: #4fa3ff; margin-left: 5px; cursor: help;" title="Calculate resource gathering rates and time to reach specific goals based on your current setup.
-• 'Resources' and 'Rare resources' per action refer to what you are currently gathering on your current planet
-• 'Additional dodge' and 'Additional rare resource drop' depend only on Laser and Sensor modifications
-• 'Avg. maneuverability' is the average Maneuverability across all your drones">ⓘ</span>
+                    • 'Resources' and 'Rare resources' per action refer to what you are currently gathering on your current planet
+                    • 'Additional dodge' and 'Additional rare resource drop' depend only on Laser and Sensor modifications
+                    • 'Avg. maneuverability' is the average Maneuverability across all your drones">ⓘ</span>
                 </div>
                 <div class="form-row">
                     <div class="form-group">
@@ -1415,51 +1678,218 @@
             </div>
         </div>
     </div>
-
+    
     <div id="universe-map-tab" class="tab-content">
-        <div style="font-size: 1.5em; text-align: center; margin-top: 2em;">Work in progress</div>
-    </div>
+        <div style="display: flex; flex-direction: row; padding: 2em; gap: 2em; height: 720px;">
+            <div style="display: flex; flex-direction: column; gap: 1em; min-width: 400px; max-width: 400px; margin-top: 37vh; transform: translateY(-50%);">
+                <div style="background: #23283a; border-radius: 6px; border: 1px solid #2c3242; padding: 1.2em; box-sizing: border-box;">
+                    <div style="font-size: 1.22em; font-weight: 700; margin-bottom: 1em; color: #f3f6fa; letter-spacing: 0.01em;">Discovered Universe</div>
+                    <div style="display: flex; flex-direction: column; gap: 1em;">
+                        <div>
+                            <label for="systems_api_key" style="display: block; margin-bottom: 0.5em; color: #e6eaf3;">API Key:</label>
+                            <input type="text" id="systems_api_key" style="width: 100%; background: #36405a; color: #e6eaf3; border: 1px solid #2c3242; padding: 0.5em; border-radius: 4px; box-sizing: border-box;">
+                        </div>
+                        <div style="color: #e6eaf3; font-size: 0.9em; margin-bottom: 0.0em;" id="systemsCount">There are currently 0 publicly discovered systems</div>
+                        <div style="color: #e6eaf3; font-size: 0.9em; margin-bottom: 1.0em;" id="totalDistance">You have currently travelled a total of 0 ly</div>
+                        <div style="display: flex; flex-direction: column; gap: 0.5em;">
+                            <label style="display: flex; align-items: center; gap: 0.5em; color: #e6eaf3; cursor: pointer;">
+                                <input type="checkbox" id="show_public_systems" style="margin: 0;">
+                                Show public systems
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 0.5em; color: #e6eaf3; cursor: pointer;">
+                                <input type="checkbox" id="show_current_position" style="margin: 0;">
+                                Show current position
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 0.5em; color: #e6eaf3; cursor: pointer;">
+                                <input type="checkbox" id="show_player_journey" style="margin: 0;">
+                                Show player journey
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 0.5em; color: #e6eaf3; cursor: pointer;">
+                                <input type="checkbox" id="show_space_stations" style="margin: 0;">
+                                Show space stations and their region of influence
+                            </label>
+                        </div>
+                        <button id="loadSystemsBtn" type="button" style="background: #36405a; color: #e6eaf3; border: 1px solid #2c3242; padding: 0.5em 1em; border-radius: 4px; cursor: pointer; width: 100%;">Load Systems</button>
+                    </div>
+                </div>
+            </div>
 
+            <div style="position: relative; width: 720px; height: 720px; background: #181c24;">
+                <canvas id="universeMap" style="width: 100%; height: 100%;"></canvas>
+                <div id="ssBlock" style="position: absolute; right: -500px; top: 75px; width: 300px; background: #23283a; border-radius: 6px; border: 1px solid #2c3242; padding: 1.2em; color: #e6eaf3; box-shadow: 0 2px 8px 0 rgba(0,0,0,0.04);">
+                    <div class="block-label" style="margin-bottom: 1em;">Space Stations</div>
+                    <div id="ssList"></div>
+                    <div id="ssAddRow" style="display: flex; gap: 0.5em; align-items: center; margin-top: 1em;">
+                        <button id="ssLoadBtn" type="button" style="margin-top: 1.5em; width: 100%; background: #36405a; color: #e6eaf3; border: none; border-radius: 4px; padding: 0.6em 0; font-weight: 600;">Load Space Stations</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div id="probabilities-tab" class="tab-content">
+        <div class="form-section" style="display: flex; flex-direction: row; gap: 2em;">
+            <div class="optimizer-block" style="margin-top: 1.0em; margin-left: 5px; width: 500px; min-width: 500px; max-width: 500px; min-height: 210px; max-height: 600px;">
+                <div class="block-label">
+                    System Occurrence Probability
+                    <span style="color: #4fa3ff; margin-left: 5px; cursor: help;" title="Calculate the probability of observing a system with specific characteristics. This tool uses complex probability calculations involving multiple parameters (nodes, categories, qualities) and their interactions. Due to the mathematical complexity of these calculations, some results may require further refinement. The current implementation is being continuously improved for accuracy.">ⓘ</span>
+                    <span style="color: #ff4f4f; margin-left: 5px; font-size: 0.8em; font-weight: normal;">beta</span>
+                </div>
+                <div class="form-row" style="margin-bottom: 1em;">
+                    <div class="form-group">
+                        <label for="inhabited_system" style="color: #e6eaf3;">System status:</label>
+                        <select id="inhabited_system" name="inhabited_system" style="width: 12em; background: #36405a; color: #e6eaf3; border: 1px solid #2c3242; padding: 0.2em; border-radius: 4px;">
+                            <option value="any">Any</option>
+                            <option value="inhabited">System is inhabited</option>
+                            <option value="uninhabited">System is not inhabited</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="n_nodes">Number of nodes:</label>
+                        <div class="input-group">
+                            <select id="n_nodes_type" name="n_nodes_type" style="width: 6em; background: #36405a; color: #e6eaf3; border: 1px solid #2c3242; margin-right: 0.5em;">
+                                <option value="exactly">Exactly</option>
+                                <option value="at least">At Least</option>
+                                <option value="any">Any</option>
+                            </select>
+                            <input type="number" id="n_nodes" name="n_nodes" value="1" min="1" max="5" style="width: 3.5em; background: #36405a; color: #e6eaf3; border: 1px solid #2c3242;">
+                        </div>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="n_gatherable">Number of gathering nodes:</label>
+                        <div class="input-group">
+                            <select id="n_gatherable_type" name="n_gatherable_type" style="width: 6em; background: #36405a; color: #e6eaf3; border: 1px solid #2c3242; margin-right: 0.5em;">
+                                <option value="exactly">Exactly</option>
+                                <option value="at least">At Least</option>
+                                <option value="any">Any</option>
+                            </select>
+                            <input type="number" id="n_gatherable" name="n_gatherable" value="1" min="0" max="5" style="width: 3.5em; background: #36405a; color: #e6eaf3; border: 1px solid #2c3242;">
+                        </div>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="n_categories">Number of different categories:</label>
+                        <div class="input-group">
+                            <select id="n_categories_type" name="n_categories_type" style="width: 6em; background: #36405a; color: #e6eaf3; border: 1px solid #2c3242; margin-right: 0.5em;">
+                                <option value="exactly">Exactly</option>
+                                <option value="at least">At Least</option>
+                                <option value="any">Any</option>
+                            </select>
+                            <input type="number" id="n_categories" name="n_categories" value="1" min="1" max="4" style="width: 3.5em; background: #36405a; color: #e6eaf3; border: 1px solid #2c3242;">
+                        </div>
+                    </div>
+                </div>
+                <div id="quality-selections" style="margin-top: 0.5em; display: flex; flex-direction: column; gap: 0.3em;">
+                    <div class="form-row" style="display: flex; align-items: center; gap: 0.5em; margin-bottom: 0;">
+                        <label style="color: #e6eaf3; min-width: 180px;">Gathering node 1 quality:</label>
+                        <select style="width: 8em; background: #36405a; color: #e6eaf3; border: 1px solid #2c3242; padding: 0.2em; border-radius: 4px;">
+                            <option value="any">Any</option>
+                            <option value="1-30">1-30</option>
+                            <option value="31-70">31-70</option>
+                            <option value="71-90">71-90</option>
+                            <option value="91-100">91-100</option>
+                        </select>
+                    </div>
+                </div>
+                <div style="margin-top: 1em; display: flex; flex-direction: column; align-items: flex-start; gap: 0.5em;">
+                    <button id="calculateProbabilityBtn" type="button" style="background: #36405a; color: #e6eaf3; border: 1px solid #2c3242; padding: 0.5em 1em; border-radius: 4px; cursor: pointer;">Calculate probability</button>
+                    <div id="probabilityResult" style="color: #e6eaf3; font-size: 1.1em;">
+                        <div>Probability: <span id="probability_value"></span></div>
+                        <div>Estimated number of systems in the universe: <span id="estimated_systems"></span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- PvP Tab -->
+    <div id="pvp-tab" class="tab-content">
+        <div class="form-section" style="display: flex; flex-direction: row; gap: 2em; align-items: flex-start;">
+            <!-- Attacking Squad JSON -->
+            <div style="flex: 1; display: flex; flex-direction: column;">
+                <label for="attackingSquadInput" style="font-size: 1.15em; font-weight: 600; margin-bottom: 0.5em;">Attacking squad</label>
+                <textarea id="attackingSquadInput" style="width: 100%; min-width: 600px; max-width: 600px; height: 320px; min-height: 320px; max-height: 600px; resize: both; font-size: 1em; background: #23283a; color: #e6eaf3; border: 1px solid #2c3242; border-radius: 6px; padding: 0.7em; overflow: auto;"></textarea>
+            </div>
+            <!-- Center controls -->
+            <div style="flex: none; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; min-width: 180px; max-width: 180px; margin-top: 2.5em; margin-left: 12.5em;">
+                <label style="margin-bottom: 1.2em; font-size: 1.1em; font-weight: 600;">PvP Battle</label>
+                <div style="margin-bottom: 1.2em; display: flex; flex-direction: column; align-items: center; gap: 0.7em;">
+                    <div style="display: flex; align-items: center; gap: 0.7em;">
+                        <input type="checkbox" id="pvpVerbose" style="margin-right: 0.5em;"> Verbose
+                    </div>
+                    <div style="display: flex; flex-direction: column; align-items: center; gap: 0.2em; width: 100%;">
+                        <label for="pvpNFights" style="font-size: 1em; margin: 0;">Number of fights:</label>
+                        <input type="number" id="pvpNFights" min="1" max="1000000" value="1000" style="width: 6em; background: #36405a; color: #e6eaf3; border: 1px solid #2c3242; margin-top: 0.2em;">
+                    </div>
+                </div>
+                <button id="pvpFightBtn" type="button" style="padding: 0.7em 2.2em; font-size: 1.1em; font-weight: 600; background: #36405a; color: #f3f6fa; border: 1px solid #4a5a7c; border-radius: 4px; cursor: pointer;">Fight</button>
+            </div>
+            <!-- Defending Squad JSON -->
+            <div style="flex: 1; display: flex; flex-direction: column;">
+                <label for="defendingSquadInput" style="font-size: 1.15em; font-weight: 600; margin-bottom: 0.5em;">Defending squad</label>
+                <textarea id="defendingSquadInput" style="width: 100%; min-width: 600px; max-width: 600px; height: 320px; min-height: 320px; max-height: 600px; resize: both; font-size: 1em; background: #23283a; color: #e6eaf3; border: 1px solid #2c3242; border-radius: 6px; padding: 0.7em; overflow: auto;"></textarea>
+            </div>
+        </div>
+        <!-- Battle Output -->
+        <div style="margin-top: 2.5em; display: flex; flex-direction: row; gap: 2em;">
+            <div style="flex: 1;">
+                <label for="pvpBattleOutput" style="font-size: 1.12em; font-weight: 600; margin-bottom: 0.5em;">Battle output</label>
+                <textarea id="pvpBattleOutput" readonly style="width: 100%; min-width: 98%; max-width: 100%; height: 260px; min-height: 120px; max-height: 600px; resize: vertical; font-size: 1em; background: #23283a; color: #e6eaf3; border: 1px solid #2c3242; border-radius: 6px; padding: 0.7em; overflow: auto;"></textarea>
+        </div>
+    </div>
+</div>
+<!-- End PvP Tab -->
+    
     <!-- Tab bar -->
     <div class="tab-container">
         <div class="tab active" data-tab="battling-tab">Battling</div>
         <div class="tab" data-tab="gathering-tab">Gathering</div>
         <div class="tab" data-tab="universe-map-tab">Universe Map</div>
+        <div class="tab" data-tab="probabilities-tab">Probabilities</div>
+        <div class="tab" data-tab="pvp-tab">PvP</div>
     </div>
-
+    
     <div id="playerResult"></div>
     <footer>
         <span>Proudly made by anfneub</span>
         <span style="margin-left: 2.5em;" id="lastUpdated"></span>
-        <span style="margin-left: 2.5em;">Space Odyssey Version 1.0.16 2025-05-25</span>
+        <span style="margin-left: 2.5em;">Space Odyssey Version 1.2.1 2025-06-16</span>
         <span style="margin-left: 2.5em; cursor: pointer; color: #4fa3ff; text-decoration: underline;" id="changelogLink">Changelog</span>
     </footer>
-
+    
     <!-- Add tab switching script -->
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             const tabs = document.querySelectorAll('.tab');
-            
             // Function to switch tabs
             function switchTab(tab) {
                 // Remove active class from all tabs and content
                 document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
                 document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-                
                 // Add active class to clicked tab and corresponding content
                 tab.classList.add('active');
                 const tabId = tab.getAttribute('data-tab');
                 document.getElementById(tabId).classList.add('active');
-                
                 // Save active tab to localStorage
                 localStorage.setItem('activeTab', tabId);
+                // Pause/resume universe map animation if needed
+                if (typeof UniverseMap !== 'undefined' && UniverseMap.getInstance) {
+                    if (tabId === 'universe-map-tab') {
+                        UniverseMap.getInstance()?.resume?.();
+                    } else {
+                        UniverseMap.getInstance()?.pause?.();
+                    }
+                }
             }
-
             // Add click handlers to all tabs
             tabs.forEach(tab => {
                 tab.addEventListener('click', () => switchTab(tab));
             });
-
             // Restore active tab from localStorage
             const savedTab = localStorage.getItem('activeTab');
             if (savedTab) {
@@ -1476,56 +1906,258 @@
         if (lastUpdated) {
             const now = new Date();
             const pad = n => n.toString().padStart(2, '0');
-            const dateStr = "2025-05-26";
-            const timeStr = "09:17";
+            const dateStr = "2025-06-29";
+            const timeStr = "18:59";
             lastUpdated.textContent = `Last updated: ${dateStr} ${timeStr}`;
         }
     </script>
     <!-- Changelog Modal -->
     <div id="changelogModal" style="display:none; position:fixed; z-index:1000; left:0; top:0; width:100vw; height:100vh; background:rgba(0,0,0,0.4); align-items:center; justify-content:center;">
-      <div style="background:#222; color:#fff; padding:1.5em; border-radius:10px; max-width:650px; width:117vw; max-width:65vw; max-height:70vh; overflow:auto; box-shadow:0 4px 32px #000; position:relative;">
-        <button id="closeChangelog" style="position:absolute; top:0.5em; right:0.5em; background:none; border:none; color:#fff; font-size:1.5em; cursor:pointer;">&times;</button>
-        <h2 style="margin-top:0;">Changelog</h2>
-        <div id="changelogContent" style="white-space:pre-wrap; background:#181818; padding:1em; border-radius:6px; max-height:50vh; overflow:auto; font-size:1em; font-family:inherit;">Loading...</div>
-      </div>
+        <div style="background:#222; color:#fff; padding:1.5em; border-radius:10px; max-width:650px; width:117vw; max-width:65vw; max-height:70vh; overflow:auto; box-shadow:0 4px 32px #000; position:relative;">
+            <button id="closeChangelog" style="position:absolute; top:0.5em; right:0.5em; background:none; border:none; color:#fff; font-size:1.5em; cursor:pointer;">&times;</button>
+            <h2 style="margin-top:0;">Changelog</h2>
+            <div id="changelogContent" style="white-space:pre-wrap; background:#181818; padding:1em; border-radius:6px; max-height:50vh; overflow:auto; font-size:1em; font-family:inherit;">Loading...</div>
+        </div>
     </div>
     <script>
-    document.getElementById('changelogLink').addEventListener('click', function() {
-      const modal = document.getElementById('changelogModal');
-      modal.style.display = 'flex';
-      fetch('changelog.txt')
-        .then(r => r.text())
-        .then(txt => {
-          // Format lines starting with '-' as list items
-          const lines = txt.split('\n');
-          let html = '';
-          let inList = false;
-          for (let i = 0; i < lines.length; i++) {
-            const line = lines[i];
-            if (/^\s*- /.test(line)) {
-              if (!inList) { html += '<ul style="margin:0 0 0 1.5em; padding-left:1.2em;">'; inList = true; }
-              html += '<li style="margin-bottom:0.2em;">' + line.replace(/^\s*- /, '') + '</li>';
-            } else {
-              if (inList) { html += '</ul>'; inList = false; }
-              // If the line is not empty, wrap in <div>, else add a blank line
-              html += line.trim() ? '<div>' + line + '</div>' : '<div style="height:0.7em;"></div>';
-            }
-          }
-          if (inList) html += '</ul>';
-          document.getElementById('changelogContent').innerHTML = html;
-        })
-        .catch(() => {
-          document.getElementById('changelogContent').textContent = 'Could not load changelog.';
-        });
-    });
-    document.getElementById('closeChangelog').addEventListener('click', function() {
-      document.getElementById('changelogModal').style.display = 'none';
-    });
-    // Optional: close modal on outside click
-    document.getElementById('changelogModal').addEventListener('click', function(e) {
-      if (e.target === this) this.style.display = 'none';
-    });
-    </script>
-    <script src="script.js"></script>
-</body>
-</html> 
+        document.getElementById('changelogLink').addEventListener('click', function() {
+            const modal = document.getElementById('changelogModal');
+            modal.style.display = 'flex';
+            fetch('changelog.txt')
+            .then(r => r.text())
+            .then(txt => {
+                // Format lines starting with '-' as list items
+                const lines = txt.split('\n');
+                let html = '';
+                let inList = false;
+                for (let i = 0; i < lines.length; i++) {
+                    const line = lines[i];
+                    if (/^\s*- /.test(line)) {
+                        if (!inList) { html += '<ul style="margin:0 0 0 1.5em; padding-left:1.2em;">'; inList = true; }
+                            html += '<li style="margin-bottom:0.2em;">' + line.replace(/^\s*- /, '') + '</li>';
+                        } else {
+                            if (inList) { html += '</ul>'; inList = false; }
+                            // If the line is not empty, wrap in <div>, else add a blank line
+                                html += line.trim() ? '<div>' + line + '</div>' : '<div style="height:0.7em;"></div>';
+                            }
+                        }
+                        if (inList) html += '</ul>';
+                        document.getElementById('changelogContent').innerHTML = html;
+                    })
+                    .catch(() => {
+                        document.getElementById('changelogContent').textContent = 'Could not load changelog.';
+                    });
+                });
+                document.getElementById('closeChangelog').addEventListener('click', function() {
+                    document.getElementById('changelogModal').style.display = 'none';
+                });
+                // Optional: close modal on outside click
+                document.getElementById('changelogModal').addEventListener('click', function(e) {
+                    if (e.target === this) this.style.display = 'none';
+                });
+            </script>
+            <script src="script.js"></script>
+            <script src="rhill-voronoi-core.min.js"></script>
+            <script src="universe_map.js"></script>
+            <script type="module">
+                // Import probability functions
+                import { probability_of_observation_with_per_gatherable_qualities } from './probabilities.js';
+                
+                document.addEventListener('DOMContentLoaded', function() {
+                    // Declare variables at the top
+                    const nNodesType = document.getElementById('n_nodes_type');
+                    const nNodes = document.getElementById('n_nodes');
+                    const nGatherableType = document.getElementById('n_gatherable_type');
+                    const nGatherable = document.getElementById('n_gatherable');
+                    const nCategoriesType = document.getElementById('n_categories_type');
+                    const nCategories = document.getElementById('n_categories');
+                    const qualitySelections = document.getElementById('quality-selections');
+                    
+                    // Quality ranges based on the probabilities.js file
+                    const qualityRanges = [
+                    { label: "1-30", value: "1-30" },
+                    { label: "31-70", value: "31-70" },
+                    { label: "71-90", value: "71-90" },
+                    { label: "91-100", value: "91-100" }
+                    ];
+                    
+                    function updateQualitySelections() {
+                        const numGatherable = parseInt(nGatherable.value) || 0;
+                        const isAny = nGatherableType.value === 'any';
+                        
+                        // Keep the first selection row
+                        const firstSelection = qualitySelections.firstElementChild;
+                        qualitySelections.innerHTML = '';
+                        if (firstSelection) {
+                            qualitySelections.appendChild(firstSelection);
+                        }
+                        
+                        if (isAny || numGatherable === 0) {
+                            qualitySelections.style.display = 'none';
+                            return;
+                        }
+                        
+                        qualitySelections.style.display = 'flex';
+                        
+                        // Add additional selections starting from index 1
+                        for (let i = 1; i < numGatherable; i++) {
+                            const selectionDiv = document.createElement('div');
+                            selectionDiv.className = 'form-row';
+                            selectionDiv.style.marginBottom = '0';
+                            selectionDiv.style.display = 'flex';
+                            selectionDiv.style.alignItems = 'center';
+                            selectionDiv.style.gap = '0.5em';
+                            
+                            const label = document.createElement('label');
+                            label.textContent = `Gathering node ${i + 1} quality:`;
+                            label.style.color = '#e6eaf3';
+                            label.style.minWidth = '180px';
+                            
+                            const select = document.createElement('select');
+                            select.style.width = '8em';
+                            select.style.background = '#36405a';
+                            select.style.color = '#e6eaf3';
+                            select.style.border = '1px solid #2c3242';
+                            select.style.padding = '0.2em';
+                            select.style.borderRadius = '4px';
+                            
+                            // Add "Any" option
+                            const anyOption = document.createElement('option');
+                            anyOption.value = 'any';
+                            anyOption.textContent = 'Any';
+                            select.appendChild(anyOption);
+                            
+                            // Add quality range options
+                            qualityRanges.forEach(range => {
+                                const option = document.createElement('option');
+                                option.value = range.value;
+                                option.value = range.value;
+                                option.textContent = range.label;
+                                select.appendChild(option);
+                            });
+                            
+                            selectionDiv.appendChild(label);
+                            selectionDiv.appendChild(select);
+                            qualitySelections.appendChild(selectionDiv);
+                        }
+                    }
+                    
+                    function handleTypeChange(selectElement, inputElement) {
+                        const isAny = selectElement.value === 'any';
+                        inputElement.disabled = isAny;
+                        inputElement.readOnly = isAny;
+                        inputElement.style.background = isAny ? '#2c3242' : '#36405a';
+                        inputElement.style.cursor = isAny ? 'not-allowed' : 'text';
+                        inputElement.style.opacity = isAny ? '0.7' : '1';
+                        inputElement.style.pointerEvents = isAny ? 'none' : 'auto';
+                        
+                        // Update quality selections when gatherable type changes
+                        if (selectElement === nGatherableType) {
+                            updateQualitySelections();
+                        }
+                    }
+                    
+                    // Add event listeners for type changes
+                    ['n_nodes_type', 'n_gatherable_type', 'n_categories_type'].forEach(id => {
+                        const select = document.getElementById(id);
+                        if (select) {
+                            select.addEventListener('change', function() {
+                                handleTypeChange(this, document.getElementById(id.replace('_type', '')));
+                            });
+                            // Set initial state
+                            handleTypeChange(select, document.getElementById(id.replace('_type', '')));
+                        }
+                    });
+                    
+                    // Prevent input when disabled
+                    ['n_nodes', 'n_gatherable', 'n_categories'].forEach(id => {
+                        const input = document.getElementById(id);
+                        if (input) {
+                            input.addEventListener('keydown', function(e) {
+                                if (this.disabled) {
+                                    e.preventDefault();
+                                    return false;
+                                }
+                            });
+                            input.addEventListener('input', function(e) {
+                                if (this.disabled) {
+                                    e.preventDefault();
+                                    this.value = '';
+                                    return false;
+                                }
+                            });
+                        }
+                    });
+                    
+                    // Add input event listener for n_gatherable to update quality selections
+                    nGatherable.addEventListener('input', updateQualitySelections);
+                    
+                    // Set initial states
+                    handleTypeChange(nNodesType, nNodes);
+                    handleTypeChange(nGatherableType, nGatherable);
+                    handleTypeChange(nCategoriesType, nCategories);
+                    
+                    // Ensure quality selections are initialized
+                    updateQualitySelections();
+                    
+                    // Calculate probability
+                    document.getElementById('calculateProbabilityBtn').addEventListener('click', function() {
+                        const nNodes = document.getElementById('n_nodes_type').value === 'any' ? 'Any' : parseInt(document.getElementById('n_nodes').value);
+                        const nNodesType = document.getElementById('n_nodes_type').value;
+                        const nGatherable = document.getElementById('n_gatherable_type').value === 'any' ? 'Any' : parseInt(document.getElementById('n_gatherable').value);
+                        const nGatherableType = document.getElementById('n_gatherable_type').value;
+                        const nCategories = document.getElementById('n_categories_type').value === 'any' ? 'Any' : parseInt(document.getElementById('n_categories').value);
+                        const nCategoriesType = document.getElementById('n_categories_type').value;
+                        
+                        // Collect quality ranges from all quality selection dropdowns
+                        const qualityRanges = [];
+                        document.querySelectorAll('#quality-selections select').forEach(select => {
+                            if (select.value === 'any') {
+                                qualityRanges.push('Any');
+                            } else {
+                                const [start, end] = select.value.split('-').map(Number);
+                                qualityRanges.push([start, end]);
+                            }
+                        });
+                        
+                        // Calculate probability
+                        const inhabitedSystemValue = document.getElementById('inhabited_system').value;
+                        const inhabitedSystem = inhabitedSystemValue === 'any' ? null : inhabitedSystemValue === 'inhabited';
+                        
+                        const probability = probability_of_observation_with_per_gatherable_qualities(
+                        nNodes,
+                        nNodesType,
+                        nGatherable,
+                        nGatherableType,
+                        nCategories,
+                        nCategoriesType,
+                        qualityRanges,
+                        inhabitedSystem
+                        );
+                        
+                        // Format probability with more decimal places for small values
+                        const formatProbability = (prob) => {
+                            if (prob < 0.001) {
+                                return `${(prob * 100).toFixed(6)}%`;
+                            }
+                            return `${(prob * 100).toFixed(2)}%`;
+                        };
+                        
+                        // Calculate and format estimated number of systems
+                        const estimatedSystems = probability * 4000000;
+                        const formatEstimatedSystems = (num) => {
+                            if (num < 0.1) {
+                                return num.toFixed(6);
+                            }
+                            return num.toFixed(2);
+                        };
+                        
+                        // Display results
+                        document.getElementById('probability_value').textContent = formatProbability(probability);
+                        document.getElementById('estimated_systems').textContent = formatEstimatedSystems(estimatedSystems);
+                    });
+                });
+            </script>
+        </body>
+        </html> 
+        

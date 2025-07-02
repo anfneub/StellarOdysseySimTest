@@ -1,3 +1,36 @@
+2025-06-29 18:59
+- Added Sakaki's changes to Worker Pool for more computationally efficient optimization
+
+2025-06-27 14:27
+- Added manual positioning of space stations and their region of influence
+
+2025-06-19 23:26
+- Increased precision of optimizer
+
+2025-06-19 12:48
+- Added unallocated stats visualization near player stats
+- Added concurrent workers for faster optimization (thanks to Sakaki Chizuru for the implementation)
+- Made page less CPU intensive by pausing animation when universe map is not being shown  
+
+2025-06-15 20:31
+- Fixed a bug where total number of stats was larger than available stats
+- Updated API import for Space Station 
+
+2025-06-15 19:03
+- Adapted coded to new squadron buffs. API import will be fixed in another moment
+
+2025-06-06 16:20
+- Corrected bug with Spectres not being imported through API and included available but unused stats in the optimization
+
+2025-06-01 14:25
+- Tentative first release of probability calculator. No guarantee of correctness whatsoever.
+
+2025-05-27 09:30
+- Introduced interactive zoomable and draggable map of the publicly discovered universe
+
+2025-05-26 20:15
+- Optimizer has been reworked once again. Should work for everybody now. If you have troubles obtaining good results, reach out to me. Dragon is not yet included in total credits and experience. 
+
 2025-05-26 09:17
 - Introduced tab visaulization and tab "Universe Map"
 
