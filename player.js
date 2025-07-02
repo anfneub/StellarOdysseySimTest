@@ -29,8 +29,7 @@ class Player {
         this.dmg = Math.floor((((7.0 * this.pow) + weapon_dmg) * this.n_clones) * (1.0 + boost));
 
         if (this.mode === 'pvp') {
-            console.log(`${this.name} hp: ${this.hp}`);
-            this.hp = Math.floor(this.hp * 7 * this.n_clones);
+            this.hp = Math.floor(this.hp * 7.0 * this.n_clones);
             console.log(`${this.name} hp: ${this.hp}`);
         }
 
