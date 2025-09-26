@@ -1,0 +1,102 @@
+2025-09-13 11:30
+- Improved map efficiency by only displaying elements in current zoom (thanks to Sakaki for the idea)
+
+2025-09-01 13:27
+- PvP battles now allows for excess damage to be transfered to nxt defender in line
+
+2025-08-21 20:00
+- Fixed a bug about incorrectly displayed SS range 
+
+2025-08-10 10:12
+- Added touch screen support for map
+
+2025-07-27 11:34
+- Long optimize will be slightly faster (thanks to Sakaki for the idea)
+- Added a new checkbox to ignore available unused stats to prevent unused stats on server to be imported multiple times
+
+2025-07-22 08:11
+- Added new elements to Space stations specific text display
+- Included visualization of range of space station in map 
+
+2025-07-21 07:44
+- Changed API import to reflect changes on server. Now importing battle and income boost, as well as SS data, correctly
+
+2025-07-20 20:00
+- Removed space stations region of influence
+- Changed space stations battle boost as per update
+
+2025-07-13 14:23
+- Added PvP fight simulator. Please refer to instruction on how to structure your squad JSON
+- Removed Space Station region of influence and added automatic plotting through API
+- Improved plot efficiency of player's journey
+
+2025-06-29 18:59
+- Added Sakaki's changes to Worker Pool for more computationally efficient optimization
+
+2025-06-27 14:27
+- Added manual positioning of space stations and their region of influence
+
+2025-06-19 23:26
+- Increased precision of optimizer
+
+2025-06-19 12:48
+- Added unallocated stats visualization near player stats
+- Added concurrent workers for faster optimization (thanks to Sakaki Chizuru for the implementation)
+- Made page less CPU intensive by pausing animation when universe map is not being shown  
+
+2025-06-15 20:31
+- Fixed a bug where total number of stats was larger than available stats
+- Updated API import for Space Station 
+
+2025-06-15 19:03
+- Adapted coded to new squadron buffs. API import will be fixed in another moment
+
+2025-06-06 16:20
+- Corrected bug with Spectres not being imported through API and included available but unused stats in the optimization
+
+2025-06-01 14:25
+- Tentative first release of probability calculator. No guarantee of correctness whatsoever.
+
+2025-05-27 09:30
+- Introduced interactive zoomable and draggable map of the publicly discovered universe
+
+2025-05-26 20:15
+- Optimizer has been reworked once again. Should work for everybody now. If you have troubles obtaining good results, reach out to me. Dragon is not yet included in total credits and experience. 
+
+2025-05-26 09:17
+- Introduced tab visaulization and tab "Universe Map"
+
+2025-05-25 16:34
+- Included API endpoint for fast player data import
+
+2025-05-25 11:50
+- Updates NPC values scaling as per new patch 
+
+2025-05-19 12:58
+- Added link to Kontors' resources calculator
+
+2025-05-16 08:14
+- Added Squadron boost to income and experience results. Slight differences between simulator and in game log are due to rounding errors
+
+2025-05-15 20:48
+- Added resources gathering calculator
+
+2025-05-09 16:32
+- It is now possible to select the number of fights for each stat combination being tested in the optimization 
+
+2025-05-08 19:32
+- Added local memory for last settings used. Settings should be kept in memory after refreshing
+
+2025-05-05 15:45
+- Fixed a bug with experience for higher levels
+- Improved the optimizer in the case where number of drones is smaller than 5 
+
+2025-05-04 20:34
+- Improved the optimization logic, should now produce much better results than before (but are they optimal? who knows!). Thanks to kontors and Maliciousism for their suggestions
+ 
+2025-05-04 13:16
+
+- Introduced Changelog
+- Maximum number of fights in Simulation is now 1'000'000. Any number bigger than that will result in 1'000'000 fights being executed anyway
+- Added experience per hour and per day in Simulation and Optimization results
+- If the second field of weapon or shield modification is left blank, it is assumed that both slots have been used for the same modification 
