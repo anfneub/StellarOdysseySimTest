@@ -1052,7 +1052,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 loadButton.textContent = 'Loading...';
 
                 // Load systems
-                const systemsResponse = await fetch('https://api.stellarodyssey.app/api/public/systems', {
+                const systemsResponse = await fetch('https://apitest.stellarodyssey.app/api/public/systems', {
                     headers: {
                         'Accept': 'application/json',
                         'sodyssey-api-key': apiKey
@@ -1070,7 +1070,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 await new Promise(resolve => setTimeout(resolve, 1000));
 
                 // Load journal
-                const journalResponse = await fetch('https://api.stellarodyssey.app/api/public/journal', {
+                const journalResponse = await fetch('https://apitest.stellarodyssey.app/api/public/journal', {
                     headers: {
                         'Accept': 'application/json',
                         'sodyssey-api-key': apiKey
@@ -1088,7 +1088,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 // Fetch user API for squadronSpaceStations
-                const userResponse = await fetch('https://api.stellarodyssey.app/api/public/user', {
+                const userResponse = await fetch('https://apitest.stellarodyssey.app/api/public/user', {
                     headers: {
                         'Accept': 'application/json',
                         'sodyssey-api-key': apiKey
